@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Plot;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Why this draw cannot open yet, or null if it can.
@@ -32,6 +33,35 @@ class PollingGuard
             ?? static::missingCodes($event)
             ?? static::codesWithNoPlot($event)
             ?? static::sizesWithTooFewLots($event);
+    }
+
+    /**
+     * For writers of the plan that run AFTER the draw opened: call inside the
+     * write's transaction, after the write. If the draw could no longer finish,
+     * this throws and the transaction rolls the change back.
+     *
+     * The plan is still editable while no lot is held (planIsFrozen() draws the
+     * line at the first held plot), and a running draw is the case where that
+     * edit is dangerous: the open checks ran once, at Start Polling, and a
+     * rewrite or repaint after that could leave codes or sizes with no lot to
+     * win — found out only by the participant who presses Confirm.
+     *
+     * A draft draw is not checked: it is still being built, and Start Polling
+     * will ask every question before it opens.
+     */
+    public static function refuseIfStartedAndBroken(Event $event): void
+    {
+        $event->refresh();
+
+        if (! in_array($event->polling_status, ['polling', 'closed'], true)) {
+            return;
+        }
+
+        if ($blocker = static::blocker($event)) {
+            throw ValidationException::withMessages(['error' => 'Not saved: this draw has already started, and after this change it could not finish. '
+                .ucfirst(preg_replace('/^Cannot start polling: /', '', $blocker)),
+            ]);
+        }
     }
 
     /** Every screen a participant sees names when the draw closes. */

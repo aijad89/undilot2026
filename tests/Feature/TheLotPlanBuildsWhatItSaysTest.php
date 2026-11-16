@@ -283,6 +283,12 @@ it('takes back a drawn lot with its Poll, so the company can draw again', functi
     $this->actingAs($admin, 'admin')->post(route('admin.polling.process', $event));
     $plot = $reg->fresh()->plot;
 
+    // The run seated everyone, so it marked the draw completed — where Take back
+    // is refused (next test). Back to closed: a draw an admin is still tidying.
+    // refresh() first: the instance still reads "closed", so update() alone
+    // would see nothing dirty and write nothing.
+    $event->refresh()->update(['polling_status' => 'closed']);
+
     $this->actingAs($admin, 'admin')
         ->post(route('admin.polling.unassign-plot', [$event, $plot]))
         ->assertSessionHas('success', fn ($m) => str_contains($m, 'was drawn'));
@@ -290,6 +296,28 @@ it('takes back a drawn lot with its Poll, so the company can draw again', functi
     expect(Poll::count())->toBe(0)
         ->and($reg->fresh()->plot_id)->toBeNull()
         ->and($plot->fresh()->is_allocated)->toBeFalse();
+});
+
+it('refuses to take back a lot once the draw is completed, from a stale tab too', function () {
+    $event = Event::factory()->create(['polling_status' => 'closed']);
+    Plot::factory()->create(['event_id' => $event->id]);
+    $reg = EventRegistration::factory()->coded('RKP')->create(['event_id' => $event->id]);
+    $admin = superAdmin();
+
+    // "Assign remaining lots" seats everyone and completes the draw.
+    $this->actingAs($admin, 'admin')->post(route('admin.polling.process', $event));
+    $plot = $reg->fresh()->plot;
+
+    expect($event->fresh()->polling_status)->toBe('completed');
+
+    // The tab opened before the run still shows Take back.
+    $this->actingAs($admin, 'admin')
+        ->post(route('admin.polling.unassign-plot', [$event, $plot]))
+        ->assertSessionHasErrors('error');
+
+    expect(Poll::count())->toBe(1)
+        ->and($reg->fresh()->plot_id)->toBe($plot->id)
+        ->and($plot->fresh()->is_allocated)->toBeTrue();
 });
 
 it('refuses a plot or a size from another event through this event URL', function () {

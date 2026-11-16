@@ -7,6 +7,7 @@ use App\Models\BidangAllocation;
 use App\Models\Event;
 use App\Models\KrafBidang;
 use App\Models\Plot;
+use App\Support\PollingGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -112,6 +113,10 @@ class PlotPainterController extends Controller
 
             $this->renumber($plots, $known);
             $this->rebuildAllocations($event);
+
+            // A draw already open must still be able to finish; if not, the
+            // repaint rolls back.
+            PollingGuard::refuseIfStartedAndBroken($event);
         });
 
         return redirect()

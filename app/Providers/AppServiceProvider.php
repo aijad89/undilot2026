@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Admin;
+use App\Support\DevEnvironment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
@@ -133,13 +134,22 @@ class AppServiceProvider extends ServiceProvider
          *
          * GATED TO NON-PRODUCTION. In production a missing attribute should render
          * blank rather than 500 a participant's page — these are a development
-         * instrument, not a runtime policy. The same `isProduction()` line that
-         * DatabaseSeeder uses, deliberately.
+         * instrument, not a runtime policy. DatabaseSeeder used to share this
+         * line; demo data now asks the stricter DevEnvironment allowlist instead,
+         * because failing open there deletes real events (see DatabaseSeeder).
          */
         if (! $this->app->isProduction()) {
             Model::preventAccessingMissingAttributes();
             Model::preventSilentlyDiscardingAttributes();
         }
+
+        /*
+         * db:wipe, migrate:fresh, migrate:refresh, migrate:reset and
+         * migrate:rollback refuse to run outside local, testing and e2e. Each
+         * one wipes or rolls back the whole schema; on a server with real data
+         * that is unrecoverable without a backup. `migrate --force` is untouched.
+         */
+        DevEnvironment::lockDestructiveCommands();
 
         Paginator::useBootstrapFive();
 

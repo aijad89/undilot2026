@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Kraftangan's administrative zones — the value stored in `admins.state`,
@@ -109,7 +110,16 @@ class AdminZones extends ManagedList
     /**
      * Rename a zone and carry every row holding it across, atomically.
      *
+     * REFUSES A NAME ANOTHER ZONE ALREADY HAS, ignoring letter case. Renaming
+     * "Perlis" to "Kedah" used to move every Perlis row under Kedah — two zones
+     * merged, each zone admin seeing the other's companies, no warning. Case is
+     * ignored because MySQL compares these columns case-insensitively, so
+     * "kedah" would land on Kedah's rows just the same. Changing only the case
+     * of the zone's OWN name is allowed.
+     *
      * @return int rows updated across all tables
+     *
+     * @throws ValidationException when `$to` is another zone's name
      */
     public static function rename(string $from, string $to): int
     {
@@ -117,6 +127,15 @@ class AdminZones extends ManagedList
 
         if ($from === $to || $to === '') {
             return 0;
+        }
+
+        $clash = collect(self::all())
+            ->first(fn ($zone) => $zone !== $from && mb_strtolower($zone) === mb_strtolower($to));
+
+        if ($clash !== null) {
+            throw ValidationException::withMessages([
+                'to' => "There is already a zone called \"{$clash}\". Renaming \"{$from}\" to it would merge the two zones. Choose another name.",
+            ]);
         }
 
         return DB::transaction(function () use ($from, $to) {

@@ -9,11 +9,10 @@ use App\Models\KrafBidang;
 use App\Models\Plot;
 use App\Models\PlotSize;
 use App\Models\Poll;
-use Illuminate\Database\Seeder;
 
 /**
- * DEMO DATA — never on the live server: DemoSeeder calls it, below
- * DatabaseSeeder's isProduction() guard. Plant it alone with
+ * DEMO DATA — never on the live server: it extends LocalOnlySeeder, which
+ * refuses every APP_ENV but local, testing and e2e. Plant it alone with
  * `db:seed --class=DemoEventsSeeder`.
  *
  * Fills the participant's screens with something to look at: events open for
@@ -25,7 +24,7 @@ use Illuminate\Database\Seeder;
  * already exists is left exactly as it is, children and all. Nothing is ever
  * deleted or changed.
  */
-class DemoEventsSeeder extends Seeder
+class DemoEventsSeeder extends LocalOnlySeeder
 {
     /** title => [location, zone, months from now it starts] */
     private const OPEN = [

@@ -204,6 +204,27 @@ class Company extends Model
                 ]);
             }
 
+            // Deleting a company cascades its draw-list rows away. For a row the
+            // company was already TOLD about (first_verified_at), that skipped
+            // the rule that only HQ removes such a row, with a reason, and
+            // RemovedFromDraw — the company simply vanished from a draw it had
+            // been promised. Draws that are over (completed, cancelled) do not
+            // count; only a draw that can still change.
+            $toldEvents = DB::table('event_registrations')
+                ->join('events', 'events.id', '=', 'event_registrations.event_id')
+                ->where('event_registrations.company_id', $company->id)
+                ->whereNotNull('event_registrations.first_verified_at')
+                ->whereIn('events.polling_status', ['draft', 'polling', 'closed'])
+                ->pluck('events.title');
+
+            if ($toldEvents->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'company' => 'Cannot delete this company: it has been told it is in the draw for '
+                        .$toldEvents->implode(', ').'. '
+                        .'HQ must remove it from that draw list first (with a reason, which the company is sent).',
+                ]);
+            }
+
             $company->auditDeletionCounts = $company->collectDeletionCounts();
         });
     }

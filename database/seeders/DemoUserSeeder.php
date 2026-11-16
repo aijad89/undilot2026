@@ -8,7 +8,6 @@ use App\Models\KrafSubBidang;
 use App\Models\User;
 use App\Support\AdminZones;
 use App\Support\EntrepreneurCategories;
-use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
@@ -19,7 +18,7 @@ use Illuminate\Support\Str;
  * Emails are `user.<zone>@demo.test`, random passwords — sign in via /auto.
  * Re-runnable: matched on email.
  */
-class DemoUserSeeder extends Seeder
+class DemoUserSeeder extends LocalOnlySeeder
 {
     /**
      * [company name, craft code, IC], one per zone in AdminZones order.

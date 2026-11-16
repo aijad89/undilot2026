@@ -147,6 +147,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::delete('{event}', [PollingController::class, 'destroyPolling'])->name('destroy');
                 Route::post('{event}/generate-plots', [PollingController::class, 'generatePlots'])->name('generate-plots');
                 Route::post('{event}/status', [PollingController::class, 'changeStatus'])->name('change-status');
+                Route::put('{event}/deadline', [PollingController::class, 'updateDeadline'])->name('deadline');
                 Route::post('{event}/process', [PollingController::class, 'processResults'])->name('process');
                 Route::post('{event}/preset', [PollingController::class, 'presetAssign'])->name('preset-assign');
                 Route::post('{event}/plots/{plot}/unassign', [PollingController::class, 'unassignPlot'])->name('unassign-plot');

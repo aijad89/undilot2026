@@ -301,6 +301,10 @@ class PollingController extends Controller
             $this->savePlan($event, $validated);
             $this->settleSizes($audit, $event);
             $this->doGeneratePlots($event);
+
+            // A draw already open must still be able to finish; if not, the
+            // whole rewrite rolls back.
+            PollingGuard::refuseIfStartedAndBroken($event);
         });
 
         return redirect()->route('admin.polling.show', $event)
@@ -396,6 +400,15 @@ class PollingController extends Controller
                 return back()->withErrors(['error' => $blocker]);
             }
 
+            // PollingGuard asks only that a deadline EXISTS. A draw opened past
+            // it reads "Open" to HQ while every participant is told "The lot
+            // draw is not open." — LotDrawController checks the clock.
+            if ($event->polling_deadline->isPast()) {
+                return back()->withErrors(['error' => 'The voting deadline ('
+                    .$event->polling_deadline->format('d M Y, H:i')
+                    .') has already passed, so nobody could draw. Set a new deadline first, then open voting.']);
+            }
+
             // The draw CAN finish. Whether it finishes well is a different
             // question, and this is the last moment anyone can still answer it.
             $gaps = $this->codesWithoutPlots($event);
@@ -424,6 +437,40 @@ class PollingController extends Controller
     }
 
     /** Everyone still without a lot, in one go — once voting has closed. */
+    /**
+     * Move the voting deadline, and nothing else.
+     *
+     * The plan form also carries the voting window, but it locks at the first
+     * held lot (planIsFrozen()). Without this, a draw closed at its deadline
+     * with lots already held could never be given more time: Reopen voting is
+     * refused past the deadline, and the only form that sets one is locked.
+     * The deadline touches no plot, so it does not need that lock.
+     */
+    public function updateDeadline(Request $request, Event $event)
+    {
+        if (! in_array($event->polling_status, ['draft', 'polling', 'closed'], true)) {
+            return back()->withErrors(['error' => 'The deadline of a '.$event->polling_status_label.' draw cannot be changed.']);
+        }
+
+        $validated = $request->validate([
+            'polling_deadline' => ['required', 'date', 'after:now'],
+        ], [
+            'polling_deadline.required' => 'A new voting deadline is required.',
+            'polling_deadline.after' => 'The new voting deadline must be in the future.',
+        ]);
+
+        $deadline = Carbon::parse($validated['polling_deadline'], config('app.timezone'));
+
+        if ($event->polling_start_date && $deadline->lte($event->polling_start_date)) {
+            return back()->withErrors(['polling_deadline' => 'The voting deadline must fall after voting opens ('
+                .$event->polling_start_date->format('d M Y, H:i').').']);
+        }
+
+        $event->update(['polling_deadline' => $deadline]);
+
+        return back()->with('success', 'Voting deadline moved to '.$deadline->format('d M Y, H:i').'.');
+    }
+
     public function processResults(Event $event)
     {
         // The button only shows on a closed draw; this is the door behind it.
@@ -522,6 +569,14 @@ class PollingController extends Controller
     {
         // {plot} binds against every event, not this one.
         abort_if($plot->event_id !== $event->id, 404);
+
+        // The button is hidden on a completed draw, but a tab opened before
+        // "Assign remaining lots" finished still posts here. "completed" has no
+        // way back in the status map, so a lot taken back now could never be
+        // handed out again — the company would be left with nothing.
+        if ($event->polling_status === 'completed') {
+            return back()->withErrors(['error' => 'This draw is completed. Its lots are final and cannot be taken back.']);
+        }
 
         $wasDrawn = $plot->allocation_type !== 'preset'
             || Poll::where('event_id', $event->id)->where('user_id', $plot->allocated_to)->exists();

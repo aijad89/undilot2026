@@ -56,3 +56,32 @@ it('reports a zone as in use while any of the three columns still holds it', fun
         ->and(AdminZones::usageForAll()['Perlis'])
         ->toBe(['admins' => 1, 'companies' => 0, 'events' => 0]);
 });
+
+/*
+ * K08. Renaming "Perlis" to "Kedah" used to move every Perlis row under Kedah:
+ * two zones merged, each zone admin seeing the other's companies, no warning.
+ */
+it('refuses to rename a zone onto another zone, in any letter case, and moves nothing', function (string $to) {
+    $perlis = Admin::factory()->create(['role' => 'admin', 'state' => 'Perlis']);
+    $kedah = Admin::factory()->create(['role' => 'admin', 'state' => 'Kedah']);
+
+    $this->actingAs(superAdmin(), 'admin')
+        ->put(route('admin.settings.zones.rename'), ['from' => 'Perlis', 'to' => $to])
+        ->assertSessionHasErrors(['to' => 'There is already a zone called "Kedah". Renaming "Perlis" to it would merge the two zones. Choose another name.']);
+
+    expect($perlis->fresh()->state)->toBe('Perlis')
+        ->and($kedah->fresh()->state)->toBe('Kedah')
+        ->and(AdminZones::all())->toContain('Perlis', 'Kedah');
+})->with(['Kedah', 'kedah', ' KEDAH ']);
+
+it('still lets a zone change only the letter case of its own name', function () {
+    $perlis = Admin::factory()->create(['role' => 'admin', 'state' => 'Perlis']);
+
+    $this->actingAs(superAdmin(), 'admin')
+        ->put(route('admin.settings.zones.rename'), ['from' => 'Perlis', 'to' => 'PERLIS'])
+        ->assertSessionHasNoErrors();
+
+    expect($perlis->fresh()->state)->toBe('PERLIS')
+        ->and(AdminZones::all())->toContain('PERLIS')
+        ->and(AdminZones::all())->not->toContain('Perlis');
+});

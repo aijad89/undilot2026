@@ -29,3 +29,6 @@ php artisan migrate:fresh --seed
 Ujian: `php artisan test` (Pest, SQLite dalam-memori).
 
 Peraturan kerja dan keputusan reka bentuk ada dalam `CLAUDE.md`.
+
+**Pembangun baharu:** mula dengan [`docs/serahan-pembangun.md`](docs/serahan-pembangun.md),
+kemudian [`docs/aliran-sistem.md`](docs/aliran-sistem.md).

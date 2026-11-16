@@ -8,7 +8,6 @@ use App\Models\EventRegistration;
 use App\Models\KrafBidang;
 use App\Models\Plot;
 use App\Models\PlotSize;
-use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -31,12 +30,14 @@ use Illuminate\Support\Facades\DB;
  *   company, a craft code on every row, a plot carrying each of those codes, and
  *   enough free lots at each (code, size) pair.
  *
- * Never on the live server: DatabaseSeeder reaches demo data only below its
- * isProduction() guard, and this seeder is not called by default at all — it is
+ * Never on the live server: it extends LocalOnlySeeder, which refuses every
+ * APP_ENV but local, testing and e2e — it once had no check of its own, and
+ * `db:seed --class` on a server would have wiped every real draw. It is also
+ * not called by default at all — it is
  * opt-in with `db:seed --class=DemoThreeEventsSeeder`, because wiping every
  * event is not something a bare `db:seed` should ever do.
  */
-class DemoThreeEventsSeeder extends Seeder
+class DemoThreeEventsSeeder extends LocalOnlySeeder
 {
     /** Three draws, each a different shape of event the office runs. */
     private const EVENTS = [

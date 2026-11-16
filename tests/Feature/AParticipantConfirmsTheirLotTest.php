@@ -240,3 +240,31 @@ it('shows the lot page the same stages as the dashboard, Open to Completed', fun
             ->assertDontSee('class="label">End<', false);
     }
 });
+
+it('leaves the official-use box for the counter to fill, with only the state branch printed', function () {
+    $event = openDraw();
+    Plot::factory()->create(['event_id' => $event->id, 'plot_code' => 'A-RKP1']);
+    $entry = inDraw($event);
+    $entry->company->update(['state' => 'Terengganu']);
+    $user = $entry->company->user;
+
+    $this->actingAs($user)->post(route('zvote.submit', $event), ['agreement' => '1']);
+
+    $entry->refresh();
+    $html = view('pdf.lot-result', [
+        'event' => $event,
+        'registration' => $entry->load('company'),
+        'assignedPlot' => $entry->plot()->with(['plotSize', 'bidang'])->first(),
+        'user' => $user,
+        'poll' => Poll::where('event_id', $event->id)->where('user_id', $user->id)->sole(),
+        'icHash' => $user->icHash(),
+        'qrDataUri' => $user->icQrDataUri(),
+    ])->render();
+
+    // The officer is not known when the slip is printed, so nothing is printed
+    // for them: name, date and signature are written at the counter.
+    expect($html)->toContain('For Official Use', 'Officer Name', 'State Branch', 'Date &amp; Time', 'Signature &amp; Official Stamp')
+        ->and($html)->toMatch('/State Branch<\/td>\s*<td class="colon">:<\/td>\s*<td class="fill">Terengganu<\/td>/')
+        ->and(str_contains($html, 'Participant Signature'))->toBeFalse()
+        ->and(str_contains($html, 'Authorised Officer'))->toBeFalse();
+});

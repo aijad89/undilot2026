@@ -16,7 +16,6 @@ use App\Models\User;
 use App\Support\AdminZones;
 use App\Support\PollingGuard;
 use Faker\Factory as Faker;
-use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -39,7 +38,7 @@ use Illuminate\Support\Str;
  * Craft codes are the coding sheet's three batik codes (TBPS, TBP, TBA), from
  * KrafCodeSeeder; the category and sub-category from DemoSeeder.
  */
-class BatikDrawSeeder extends Seeder
+class BatikDrawSeeder extends LocalOnlySeeder
 {
     private const DOMAIN = 'batik.test';
 
@@ -82,11 +81,8 @@ class BatikDrawSeeder extends Seeder
 
     public function run(): void
     {
-        if (app()->isProduction()) {
-            $this->command?->error('BatikDrawSeeder plants demo data and does not run in production.');
-
-            return;
-        }
+        // No environment check here: LocalOnlySeeder refuses every environment
+        // outside DevEnvironment::NAMES before run() is reached.
 
         $category = KrafBidang::categories()->where('name', 'TEKSTIL')->firstOrFail();
         $batik = KrafSubBidang::where('bidang_id', $category->id)->where('name', 'Batik')->firstOrFail();

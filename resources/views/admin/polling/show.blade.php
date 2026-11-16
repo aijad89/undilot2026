@@ -34,7 +34,25 @@
                 <p class="mac-muted mb-0">
                     <i class="bi bi-calendar-range me-1" aria-hidden="true"></i>
                     Voting {{ $event->polling_start_date->format('d M Y, H:i') }} – {{ $event->polling_deadline->format('d M Y, H:i') }}
+                    @if($event->polling_deadline->isPast() && in_array($stage, ['draft', 'polling', 'closed'], true))
+                        <span class="mac-badge mac-badge-orange ms-1">Deadline passed</span>
+                    @endif
                 </p>
+            @endif
+            @if($canManage && $event->polling_deadline && in_array($stage, ['draft', 'polling', 'closed'], true))
+                {{-- Works after lots are held, unlike the plan form. A passed
+                     deadline must be moved here before voting can reopen. --}}
+                <form method="POST" action="{{ route('admin.polling.deadline', $event) }}" class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                    @csrf
+                    @method('PUT')
+                    <label for="polling_deadline" class="mac-muted small mb-0">Voting ends</label>
+                    <input type="datetime-local" id="polling_deadline" name="polling_deadline" class="form-control form-control-sm" style="width:auto"
+                           value="{{ old('polling_deadline', $event->polling_deadline->format('Y-m-d\TH:i')) }}" required>
+                    <button type="submit" class="mac-btn-secondary btn-sm">Change deadline</button>
+                </form>
+                @error('polling_deadline')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                @enderror
             @endif
         </div>
 

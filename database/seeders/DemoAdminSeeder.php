@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Admin;
 use App\Support\AdminZones;
-use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
@@ -14,7 +13,7 @@ use Illuminate\Support\Str;
  * away — sign in as any of them through /auto, which exists only locally.
  * Re-runnable: matched on email.
  */
-class DemoAdminSeeder extends Seeder
+class DemoAdminSeeder extends LocalOnlySeeder
 {
     public function run(): void
     {

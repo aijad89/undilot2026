@@ -8,11 +8,11 @@ use App\Models\EventRegistration;
 use App\Models\KrafBidang;
 use App\Models\KrafProduk;
 use App\Models\KrafSubBidang;
-use Illuminate\Database\Seeder;
 
 /**
- * DEMO DATA — never on the live server (DatabaseSeeder calls it below its
- * isProduction() guard). Plant it on purpose with `db:seed --class=DemoSeeder`.
+ * DEMO DATA — never on the live server (it extends LocalOnlySeeder, which
+ * refuses every APP_ENV but local, testing and e2e). Plant it on purpose with
+ * `db:seed --class=DemoSeeder`.
  *
  * Plants, in order: a sample craft hierarchy, 14 state admins + 1 HQ, 14
  * participants with a company each, and two events — one with its draw list
@@ -20,7 +20,7 @@ use Illuminate\Database\Seeder;
  * events; then DemoScenarioSeeder's "Uji: …" events, one per state the manual
  * test sheet needs. Re-runnable: everything is matched by name or email first.
  */
-class DemoSeeder extends Seeder
+class DemoSeeder extends LocalOnlySeeder
 {
     /** category => [sub-category => [[classifications], [products]]] */
     private const HIERARCHY = [

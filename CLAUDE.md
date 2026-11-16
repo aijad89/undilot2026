@@ -126,8 +126,27 @@ paling sukar dipulihkan.
 
 `DatabaseSeeder` memanggil `AdminSeeder` dan `KrafCodeSeeder` (helaian pengekodan
 HKK 2025 + lima kategori) — tanpanya pemasangan baharu tidak boleh memberi kod
-kepada sesiapa. Kedua-duanya boleh dijalankan semula. Data demo, jika ada, pergi
-**di bawah** pengawal `isProduction()`. `E2eSeeder` hanya berjalan dalam `e2e`.
+kepada sesiapa. Kedua-duanya boleh dijalankan semula.
+
+**Setiap seeder data demo/ujian mewarisi `LocalOnlySeeder`**, yang menolak
+(campak `RuntimeException`) setiap `APP_ENV` selain `local`, `testing` dan `e2e`
+(`App\Support\DevEnvironment::NAMES`). Ia **senarai benar**, bukan
+`isProduction()`: pelayan yang `APP_ENV`-nya `staging`, salah eja atau tiada
+tetap ditolak. Pengawal berada dalam `__invoke`, jadi `db:seed --class=X` dan
+`$this->call(X::class)` kedua-duanya melaluinya. `DatabaseSeeder` bertanya soalan
+yang sama sebelum memanggil `DemoSeeder`. Sebabnya: `DemoThreeEventsSeeder`
+memadam **setiap** acara sebelum menanam, dan dahulu tiada pengawal sendiri.
+
+Seeder baharu: data demo → `extends LocalOnlySeeder`; data rujukan → tambah
+namanya pada `REFERENCE_SEEDERS` dalam
+`tests/Feature/DemoSeedersNeverRunOnAServerTest.php`. Ujian itu gagal jika tidak.
+
+**`db:wipe`, `migrate:fresh`, `migrate:refresh`, `migrate:reset` dan
+`migrate:rollback` juga ditolak** di luar senarai yang sama
+(`DevEnvironment::lockDestructiveCommands()` dalam `AppServiceProvider`).
+`migrate --force` tidak disentuh.
+
+`E2eSeeder` pula hanya berjalan dalam `e2e` (dan `testing`).
 
 ### `/auto` tidak pernah wujud di pelayan
 
@@ -299,6 +318,10 @@ lubang; jangan "betulkan".
   memulihkan baris seperti asal (mungkin masih menunggu HQ) dan tanpa
   pemberitahuan kepada syarikat yang sudah menerima `RemovedFromDraw`. Ditemui
   oleh ujian 2026-11-15; sebelum itu undo tiada pengawal ini.
+- **Syarikat tidak boleh dipadam** (oleh sesiapa) selagi ia ada baris yang sudah
+  diberitahu dalam cabutan `draft`/`polling`/`closed` — padam akan cascade baris
+  itu tanpa sebab dan tanpa `RemovedFromDraw`. HQ keluarkan baris dahulu.
+  `Company::booted()` (K07).
 - `first_verified_at` tidak pernah dikosongkan; ia membezakan semakan semula
   daripada yang pertama, supaya peserta diberitahu sekali sahaja.
 
@@ -358,7 +381,17 @@ seseorang menyunting pelan.
 
 Pelan **dibekukan** sebaik satu lot dipegang, preset termasuk
 (`PollingController::planIsFrozen()`): sunting, kosongkan dan cat semuanya
-ditolak. Jadi tiada penulisan semula yang perlu mengosongkan `plot_id` — cabang
+ditolak. **Sebelum itu, jika cabutan sudah bermula** (`polling`/`closed`), setiap
+tulis semula atau cat semula memanggil `PollingGuard::refuseIfStartedAndBroken()`
+dalam transaksi yang sama: jika cabutan tidak lagi boleh selesai, perubahan
+dibatalkan (K05, 2026-11-16).
+
+**Tarikh tamat ada pintu sendiri** (`PollingController::updateDeadline()`), kerana
+borang pelan terkunci pada lot pertama. *Reopen voting* ditolak bila tarikh
+tamat sudah lepas — `PollingGuard` hanya bertanya tarikh itu wujud (K06).
+
+*Take back* (`unassignPlot()`) ditolak pada cabutan `completed` — tiada jalan
+balik untuk memberi lot semula (K04). Jadi tiada penulisan semula yang perlu mengosongkan `plot_id` — cabang
 "pulihkan preset" `daftar` tidak pernah boleh berjalan, dan tidak dibawa.
 
 ### Audit cabutan sebahagiannya ditulis dengan tangan
@@ -629,6 +662,10 @@ Dua zon lama bergabung jadi satu (`Selangor` + `Kuala Lumpur` →
 Sasaran diselesaikan terhadap **senarai hidup**, bukan salinan — zon ialah
 `ManagedList` yang boleh dinamakan semula. Nama tanpa pemetaan **melontar**,
 tidak disimpan mentah.
+
+`AdminZones::rename()` **menolak nama zon lain**, tidak peka huruf besar (MySQL
+membandingkan lajur ini begitu juga) — jika tidak, dua zon bergabung senyap
+(K08). Menukar huruf besar/kecil nama sendiri dibenarkan.
 
 ### `legacy:transform-aacb` membina satu acara, bukan sejarah
 

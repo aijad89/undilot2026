@@ -7,7 +7,6 @@ use App\Models\Company;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
-use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
@@ -21,7 +20,7 @@ use Illuminate\Support\Str;
  * The event's draw list is filled; its lot plan is NOT — building the plan
  * through the screens is what the draw spec is for.
  */
-class E2eSeeder extends Seeder
+class E2eSeeder extends LocalOnlySeeder
 {
     public function run(): void
     {

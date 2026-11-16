@@ -103,20 +103,22 @@
     }
     .badge-success { background: #e6f4ec; color: #0b6239; }
 
-    /* ── Stamp ── */
-    .stamp-area {
+    /* ── Official use ── */
+    .official-box {
         margin: 0 24px 20px;
         border: 1.5px dashed #c3ccd8;
         border-radius: 8px;
-        padding: 14px 18px;
-        display: table;
-        width: calc(100% - 48px);
+        padding: 12px 18px 14px;
     }
-    .stamp-cell { display: table-cell; width: 50%; vertical-align: middle; }
-    .stamp-cell.right { text-align: right; }
-    .stamp-label { font-size: 9px; color: #586477; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 32px; }
-    .stamp-line  { border-bottom: 1px solid #586477; width: 140px; margin-left: auto; }
-    .stamp-name  { font-size: 9px; color: #586477; text-align: center; margin-top: 4px; }
+    .official-title { font-size: 9px; font-weight: bold; color: #586477; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+    table.official { width: 100%; border-collapse: collapse; }
+    table.official td { padding: 7px 0 3px; vertical-align: bottom; font-size: 10px; }
+    table.official td.label { width: 110px; font-weight: bold; color: #344054; white-space: nowrap; }
+    table.official td.colon { width: 12px; color: #344054; }
+    /* A ruled line to write on; the printed branch sits on the same line. */
+    table.official td.fill { border-bottom: 1px solid #586477; height: 16px; }
+    .sign-label { font-size: 9px; color: #586477; text-transform: uppercase; letter-spacing: .06em; margin-top: 14px; margin-bottom: 30px; }
+    .sign-line  { border-bottom: 1px solid #586477; width: 200px; }
 
     /* ── Footer ── */
     .footer {
@@ -269,18 +271,33 @@
     </table>
 </div>
 
-{{-- ── Signature area ── --}}
-<div class="stamp-area no-break">
-    <div class="stamp-cell">
-        <div class="stamp-label">Participant Signature</div>
-        <div class="stamp-line" style="margin-left:0; width:130px;"></div>
-        <div class="stamp-name">{{ $user->name }}</div>
-    </div>
-    <div class="stamp-cell right">
-        <div class="stamp-label">Official Stamp / Signature</div>
-        <div class="stamp-line"></div>
-        <div class="stamp-name">Authorised Officer</div>
-    </div>
+{{-- ── Official use ──
+     Filled in BY HAND at the counter, by whoever checks this participant on the
+     day. The slip is printed at home, often weeks before; the officer is not
+     known then, so no name is printed — a pre-printed name would claim a check
+     that person never made. State Branch is the one fact already known: the
+     company's own zone, which tells the counter whose participant this is. --}}
+<div class="official-box no-break">
+    <div class="official-title">For Official Use</div>
+    <table class="official">
+        <tr>
+            <td class="label">Officer Name</td>
+            <td class="colon">:</td>
+            <td class="fill"></td>
+        </tr>
+        <tr>
+            <td class="label">State Branch</td>
+            <td class="colon">:</td>
+            <td class="fill">{{ $registration->company?->state }}</td>
+        </tr>
+        <tr>
+            <td class="label">Date &amp; Time</td>
+            <td class="colon">:</td>
+            <td class="fill"></td>
+        </tr>
+    </table>
+    <div class="sign-label">Signature &amp; Official Stamp</div>
+    <div class="sign-line"></div>
 </div>
 
 {{-- ── Footer ── --}}
