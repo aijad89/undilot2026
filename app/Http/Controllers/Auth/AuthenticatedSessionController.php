@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\IntendedUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +28,10 @@ class AuthenticatedSessionController extends Controller
         // out lands somewhere else with no way back but to find the link again.
         // The dashboard is the fallback for a direct visit to the login page —
         // named, not '/': '/' is the public event list.
-        return redirect()->intended(route('dashboard'));
+        //
+        // IntendedUrl, not intended(): the admin guard writes the same session
+        // key, and an admin page here would bounce to the admin login (K09).
+        return IntendedUrl::redirect($request, admin: false, fallback: route('dashboard'));
     }
 
     public function destroy(Request $request): RedirectResponse

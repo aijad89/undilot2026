@@ -558,7 +558,7 @@ Butiran penuh dalam `CLAUDE.md` ("Jadual `legacy_*`" hingga "Pembersihan").
 | 1 | **21 ujian gagal** — `tests/Fixtures/legacy-dump-sample.sql` tidak pernah di-push kerana `.gitignore` mengabaikan `*.sql`. | Dapatkan fail daripada mesin pembangun asal. **Semak tiada data peribadi sebenar**, kemudian tambah `!tests/Fixtures/*.sql` pada `.gitignore` dan commit. |
 | 2 | **Data sebenar belum dimuat.** Peserta akan diimport dari CSV pejabat (belum diterima). | Bila CSV sampai: `import:participants`. Selepas itu tamatkan peraturan baseline migration. |
 | 3 | **Tiada dokumen/skrip deploy** dan maklumat pelayan tiada dalam repo. | Lengkapkan seksyen 13 **[PERLU DIISI]**. |
-| 4 | `.env.example` masih ada `DEV_AUTO_LOGIN` dan `DEV_AUTO_LOGIN_ALLOWED_IPS`, tetapi kod tidak membacanya — `/auto` dikawal oleh `APP_ENV` sahaja (`CLAUDE.md` menolak pintu ber-flag). | Buang dua kunci itu daripada `.env.example` supaya tidak mengelirukan. |
+| 4 | ~~`.env.example` ada `DEV_AUTO_LOGIN` yang tidak dibaca kod~~ | **Selesai 2026-11-16** — dibuang; `.env.example` kini menerangkan `/auto` dikawal oleh `APP_ENV` sahaja. |
 | 5 | `TODO.md` dan nota serahan mingguan (`last16.10.26.md`) disimpan **di luar git** pada mesin pembangun asal. | Minta salinan daripada pembangun asal. |
 | 6 | Jadual persekitaran tempatan dalam `CLAUDE.md` (`f:\herd\undilot2026`, Herd, `php84.bat`) khusus untuk mesin pembangun asal. | Abaikan laluan itu; ikut seksyen 5 di sini. |
 | 7 | Suite Playwright perlukan MySQL; belum disahkan pada mesin baharu. | Jalankan sekali selepas MySQL disediakan. |

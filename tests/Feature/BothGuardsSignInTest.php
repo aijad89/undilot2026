@@ -88,3 +88,46 @@ it('refuses a wrong password on both guards', function () {
         ->assertSessionHasErrors('email');
     expect(auth('web')->check())->toBeFalse();
 });
+
+/*
+ * K09. Both guards store the bounced-from page in one session key. A page from
+ * the other side must not be followed after sign-in, or the person lands on the
+ * other side's login form, as if their own sign-in had failed.
+ */
+it('sends an admin to the admin dashboard, not a participant page they were bounced from earlier', function () {
+    $admin = Admin::factory()->super()->create(['password' => 'kraf1234']);
+
+    $this->get('/dashboard')->assertRedirect(route('login'));   // stores /dashboard as intended
+
+    $this->post('/admin/login', ['email' => $admin->email, 'password' => 'kraf1234'])
+        ->assertRedirect(route('admin.dashboard'));
+
+    expect(session('url.intended'))->toBeNull();   // dropped, not kept to ambush the next sign-in
+});
+
+it('still sends an admin back to the admin page they were bounced from', function () {
+    $admin = Admin::factory()->super()->create(['password' => 'kraf1234']);
+
+    $this->get(route('admin.events.index'))->assertRedirect(route('admin.login'));
+
+    $this->post('/admin/login', ['email' => $admin->email, 'password' => 'kraf1234'])
+        ->assertRedirect(route('admin.events.index'));
+});
+
+it('sends a participant to their dashboard, not an admin page they were bounced from earlier', function () {
+    $user = User::factory()->create(['password' => 'kraf1234']);
+
+    $this->get(route('admin.events.index'))->assertRedirect(route('admin.login'));
+
+    $this->post('/login', ['email' => $user->email, 'password' => 'kraf1234'])
+        ->assertRedirect(route('dashboard'));
+});
+
+it('still sends a participant back to the participant page they were bounced from', function () {
+    $user = User::factory()->create(['password' => 'kraf1234']);
+
+    $this->get(route('notifications.index'))->assertRedirect(route('login'));
+
+    $this->post('/login', ['email' => $user->email, 'password' => 'kraf1234'])
+        ->assertRedirect(route('notifications.index'));
+});

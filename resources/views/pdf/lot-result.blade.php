@@ -177,8 +177,11 @@
             @endif
         </div>
     @endif
+    {{-- The CODE (TBPS), with its sub-category as the admin draw page shows it.
+         Not ->name: on a code row that is the craft CATEGORY (TEKSTIL), which
+         printed "Craft code: TEKSTIL" above a table saying TBPS. --}}
     @if($assignedPlot->bidang)
-        <div class="lot-location">Craft code: {{ $assignedPlot->bidang->name }}</div>
+        <div class="lot-location">Craft code: {{ $assignedPlot->bidang->code }}@if($sub = $assignedPlot->bidang->pecahan_bidang ?? null) ({{ $sub }})@endif</div>
     @endif
 </div>
 

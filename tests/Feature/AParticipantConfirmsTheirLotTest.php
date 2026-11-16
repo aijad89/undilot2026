@@ -268,3 +268,31 @@ it('leaves the official-use box for the counter to fill, with only the state bra
         ->and(str_contains($html, 'Participant Signature'))->toBeFalse()
         ->and(str_contains($html, 'Authorised Officer'))->toBeFalse();
 });
+
+it('prints the craft code in the lot box, not the craft category', function () {
+    $event = openDraw();
+    $tbps = KrafBidang::factory()->code('TBPS')->create(['name' => 'TEKSTIL', 'pecahan_bidang' => 'BATIK']);
+    Plot::factory()->create(['event_id' => $event->id, 'plot_code' => 'A-TBPS1', 'bidang_id' => $tbps->id]);
+    $entry = inDraw($event, 'TBPS');
+    $user = $entry->company->user;
+
+    $this->actingAs($user)->post(route('zvote.submit', $event), ['agreement' => '1']);
+
+    $entry->refresh();
+    expect($entry->plot->bidang_id)->toBe($tbps->id);
+
+    $html = view('pdf.lot-result', [
+        'event' => $event,
+        'registration' => $entry->load('company'),
+        'assignedPlot' => $entry->plot()->with(['plotSize', 'bidang'])->first(),
+        'user' => $user,
+        'poll' => Poll::where('event_id', $event->id)->where('user_id', $user->id)->sole(),
+        'icHash' => $user->icHash(),
+        'qrDataUri' => $user->icQrDataUri(),
+    ])->render();
+
+    // `name` on a code row is the category; it printed "Craft code: TEKSTIL"
+    // above a table that said TBPS.
+    expect($html)->toContain('Craft code: TBPS (BATIK)')
+        ->and(str_contains($html, 'Craft code: TEKSTIL'))->toBeFalse();
+});

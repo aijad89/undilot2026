@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth\Admin;
 
 use App\Http\Requests\Auth\AdminLoginRequest;
+use App\Support\IntendedUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
@@ -20,7 +21,9 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('admin.dashboard'));
+        // Not intended(): the participant guard writes the same session key, so
+        // a page bounced from the participant side is ignored here (K09).
+        return IntendedUrl::redirect($request, admin: true, fallback: route('admin.dashboard'));
     }
 
     public function logout(Request $request)

@@ -13,7 +13,7 @@ yang belum siap, dan 5 pepijat sederhana yang masih terbuka.
 | Kategori | Jumlah | Status |
 |---|---|---|
 | 🔴 Penghalang go-live | 6 | 0 selesai |
-| 🐞 Pepijat sederhana (K04–K10) | 7 | 5 selesai (K04–K08), belum commit |
+| 🐞 Pepijat sederhana (K04–K10) | 7 | 6 selesai (K04–K09); K10 menunggu keputusan pejabat |
 | 🟡 Patut dibuat | 5 | 0 selesai |
 | 🟢 Selepas go-live | 18 pepijat rendah | — |
 
@@ -82,8 +82,9 @@ Sumber: `docs/testing/undilot-test-manual.xlsx`.
 ### B5. Pepijat sederhana terbuka
 Lihat seksyen 2. Semua K04–K08 mesti dibaiki sebelum go-live.
 
-- [x] K04–K08 dibaiki 2026-11-16 (belum commit)
-- [ ] K09 (rendah kesan) dan K10 (perlu keputusan pejabat)
+- [x] K04–K08 dibaiki 2026-11-16 (PR #1)
+- [x] K09 dibaiki 2026-11-16 (belum merge)
+- [ ] K10 (perlu keputusan pejabat: adakah *Unpublished* bermaksud sembunyi dari awam?)
 
 ### B6. Tamatkan peraturan "satu baseline migration" pada hari data sebenar dimasukkan
 Sekarang perubahan skema dibuat dengan mengedit
@@ -102,7 +103,7 @@ Setiap pembaikan mesti ada ujian yang **dibuktikan menggigit** (buang
 pembaikan sementara → ujian gagal → pulihkan), mengikut peraturan `CLAUDE.md`.
 
 ### K04 — *Take back* berfungsi pada cabutan yang sudah tamat
-- [x] **Dibaiki** 2026-11-16 (belum commit) — `unassignPlot()` menolak bila `polling_status = completed`. Ujian: `TheLotPlanBuildsWhatItSaysTest` (refuses to take back… completed).
+- [x] **Dibaiki** 2026-11-16 (PR #1) — `unassignPlot()` menolak bila `polling_status = completed`. Ujian: `TheLotPlanBuildsWhatItSaysTest` (refuses to take back… completed).
 - **Apa berlaku:** Dari tab lama, *Take back* pada cabutan `completed` mengosongkan
   lot syarikat. Tiada apa boleh memberinya lot semula (`completed` tiada jalan
   balik) dan mesej salah berkata ia boleh mengundi semula.
@@ -111,7 +112,7 @@ pembaikan sementara → ujian gagal → pulihkan), mengikut peraturan `CLAUDE.md
 - **Kes ujian:** TC-136
 
 ### K05 — Pelan boleh disunting / dicat semula selepas cabutan dibuka
-- [x] **Dibaiki** 2026-11-16 (belum commit) — Reka bentuk asal dikekalkan (pelan boleh disunting sehingga lot pertama dipegang), tetapi selepas cabutan bermula setiap tulis semula / cat semula menjalankan `PollingGuard::refuseIfStartedAndBroken()` dalam transaksi yang sama — jika cabutan tidak boleh selesai, semua dibatalkan. Ujian: `ARunningDrawsPlanCannotBreakItTest`.
+- [x] **Dibaiki** 2026-11-16 (PR #1) — Reka bentuk asal dikekalkan (pelan boleh disunting sehingga lot pertama dipegang), tetapi selepas cabutan bermula setiap tulis semula / cat semula menjalankan `PollingGuard::refuseIfStartedAndBroken()` dalam transaksi yang sama — jika cabutan tidak boleh selesai, semua dibatalkan. Ujian: `ARunningDrawsPlanCannotBreakItTest`.
 - **Apa berlaku:** Jika belum ada lot dipegang, *Edit plan* dan *Paint codes*
   masih menyimpan semasa cabutan Open, tanpa menjalankan semula semakan
   `PollingGuard` — cabutan boleh jadi tidak boleh selesai.
@@ -122,7 +123,7 @@ pembaikan sementara → ujian gagal → pulihkan), mengikut peraturan `CLAUDE.md
 - **Kes ujian:** TC-124
 
 ### K06 — *Reopen voting* dengan tarikh tamat yang sudah lepas
-- [x] **Dibaiki** 2026-11-16 (belum commit) — `changeStatus()` menolak buka ke `polling` bila tarikh tamat sudah lepas. Pintu baharu `PUT admin/polling/{event}/deadline` (`updateDeadline()`) + borang "Change deadline" di halaman cabutan — berfungsi walaupun lot sudah dipegang. Ujian: `AReopenedDrawHasTimeLeftTest`.
+- [x] **Dibaiki** 2026-11-16 (PR #1) — `changeStatus()` menolak buka ke `polling` bila tarikh tamat sudah lepas. Pintu baharu `PUT admin/polling/{event}/deadline` (`updateDeadline()`) + borang "Change deadline" di halaman cabutan — berfungsi walaupun lot sudah dipegang. Ujian: `AReopenedDrawHasTimeLeftTest`.
 - **Apa berlaku:** HQ nampak "Open", tetapi setiap peserta mendapat "The lot
   draw is not open." Tarikh tamat tidak boleh diubah sebaik ada lot dipegang.
 - **Kod:** `PollingController::changeStatus()` — `PollingGuard::noWindow()` hanya
@@ -133,7 +134,7 @@ pembaikan sementara → ujian gagal → pulihkan), mengikut peraturan `CLAUDE.md
 - **Kes ujian:** TC-143
 
 ### K07 — Admin zon boleh memadam syarikat yang HQ sudah sahkan
-- [x] **Dibaiki** 2026-11-16 (belum commit) — `Company::booted()` menolak padam (untuk semua peranan) selagi syarikat ada baris yang sudah diberitahu dalam cabutan `draft`/`polling`/`closed`. HQ keluarkan baris dahulu (dengan sebab, `RemovedFromDraw` dihantar), kemudian padam. Ujian: `ACompanyToldItIsInADrawIsNotDeletedSilentlyTest`.
+- [x] **Dibaiki** 2026-11-16 (PR #1) — `Company::booted()` menolak padam (untuk semua peranan) selagi syarikat ada baris yang sudah diberitahu dalam cabutan `draft`/`polling`/`closed`. HQ keluarkan baris dahulu (dengan sebab, `RemovedFromDraw` dihantar), kemudian padam. Ujian: `ACompanyToldItIsInADrawIsNotDeletedSilentlyTest`.
 - **Apa berlaku:** Memadam syarikat (skrin Companies) turut membuang baris
   senarai cabutannya — memintas peraturan bahawa hanya HQ boleh mengeluarkan
   syarikat yang sudah diberitahu, dan tiada `RemovedFromDraw` dihantar.
@@ -145,7 +146,7 @@ pembaikan sementara → ujian gagal → pulihkan), mengikut peraturan `CLAUDE.md
 - **Kes ujian:** TC-040
 
 ### K08 — Menamakan semula zon kepada nama sedia ada menggabungkan zon
-- [x] **Dibaiki** 2026-11-16 (belum commit) — `AdminZones::rename()` menolak nama zon lain (tidak peka huruf besar); tukar huruf besar/kecil nama sendiri dibenarkan. Ujian: `ZonesCarryTheirRowsWhenRenamedTest`.
+- [x] **Dibaiki** 2026-11-16 (PR #1) — `AdminZones::rename()` menolak nama zon lain (tidak peka huruf besar); tukar huruf besar/kecil nama sendiri dibenarkan. Ujian: `ZonesCarryTheirRowsWhenRenamedTest`.
 - **Apa berlaku:** Namakan "Perlis" kepada "Kedah": admin kedua-dua zon nampak
   syarikat satu sama lain, tanpa amaran. Nama yang hanya berbeza huruf besar
   menyebabkan admin zon mendapat 403 pada syarikatnya sendiri.
@@ -156,7 +157,7 @@ pembaikan sementara → ujian gagal → pulihkan), mengikut peraturan `CLAUDE.md
 - **Kes ujian:** TC-053
 
 ### K09 — Admin boleh mendarat di borang log masuk peserta selepas log masuk
-- [ ] **Dibaiki**
+- [x] **Dibaiki** 2026-11-16 (belum merge) — `App\Support\IntendedUrl`: halaman intended dari sisi lain diabaikan dan dibuang, untuk kedua-dua log masuk (admin dan peserta). Ujian: `BothGuardsSignInTest` (+4).
 - **Apa berlaku:** Buka halaman peserta dahulu (dilantun ke `/login`), kemudian
   log masuk di `/admin/login` — admin dihantar ke borang log masuk peserta
   (URL "intended" yang basi).
@@ -239,4 +240,5 @@ yang sudah dibuang (laporan, pengumuman, permohonan sertai) — sahkan dan tutup
 | Tarikh | Perkara | Commit | Oleh |
 |---|---|---|---|
 | 2026-11-16 | Penilaian awal; pengawal seeder demo + `migrate:fresh` di pelayan (belum commit) | — | — |
-| 2026-11-16 | K04–K08 dibaiki, 22 ujian baharu, setiap satu dibuktikan menggigit. Suite: 479 lulus, 21 gagal (fixture lama sahaja) | — | — |
+| 2026-11-16 | K04–K08 dibaiki, 22 ujian baharu, setiap satu dibuktikan menggigit. Suite: 479 lulus, 21 gagal (fixture lama sahaja) | PR #1 | — |
+| 2026-11-16 | K09 dibaiki; label kod kraf pada slip dibetulkan; `.env.example` dibersihkan | PR #2 | — |
