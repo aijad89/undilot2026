@@ -120,7 +120,7 @@
                                 </td>
                                 <td class="mac-text-sm" style="overflow-wrap: anywhere">
                                     @if($registration->user_id)
-                                        {{ $registration->company->user->email }}
+                                        {{ $registration->company->user->community_id ?? '—' }}
                                     @else
                                         <span class="mac-badge mac-badge-orange">No account</span>
                                     @endif

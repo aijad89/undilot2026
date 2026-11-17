@@ -183,7 +183,7 @@ it('hands each participant the plot the dump says they drew', function () {
 
     $registration = DB::table('event_registrations')
         ->join('users', 'users.id', '=', 'event_registrations.user_id')
-        ->where('users.email', 'usahawan204@legacy.test')
+        ->where('users.legacy_id', '204')
         ->select('event_registrations.*')
         ->first();
 
@@ -208,7 +208,7 @@ it('splits the craft code from the right, where the size is', function () {
     // Reading left to right turns that into code 'Manik'.
     $registration = DB::table('event_registrations')
         ->join('users', 'users.id', '=', 'event_registrations.user_id')
-        ->where('users.email', 'usahawan205@legacy.test')
+        ->where('users.legacy_id', '205')
         ->select('event_registrations.*')
         ->first();
 
@@ -230,7 +230,7 @@ it('writes every registration verified, because the draw completed', function ()
     // Confirmed when they actually confirmed, not when the import ran.
     $confirmed = DB::table('event_registrations')
         ->join('users', 'users.id', '=', 'event_registrations.user_id')
-        ->where('users.email', 'usahawan204@legacy.test')
+        ->where('users.legacy_id', '204')
         ->value('confirmed_at');
 
     expect((string) $confirmed)->toStartWith('2025-10-06 10:02:07');

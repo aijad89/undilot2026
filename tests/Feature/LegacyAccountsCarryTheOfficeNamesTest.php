@@ -14,9 +14,10 @@ use Illuminate\Support\Facades\DB;
  *   ASSIGNED here, not migrated — and the assignment has to be stable, or a test
  *   that signs in as "the super admin" changes person between runs.
  *
- *   There is no email and no password anywhere in the dump, so both are built.
- *   Every address lands on `legacy.test` — its own domain, NOT the `demo.test`
- *   the seeders use, because --fresh deletes by domain.
+ *   Officers become admins with their `loginname` as username; the old
+ *   passwords are not carried (random ones are set). Every row built carries
+ *   `legacy_id`, because --fresh deletes by it — never what the office or the
+ *   demo seeders made.
  */
 
 function loadForAccounts(): void
@@ -29,7 +30,7 @@ function loadForAccounts(): void
 it('refuses to run before anything is loaded', function () {
     expect(Artisan::call('legacy:accounts'))->toBe(1);
 
-    expect(Admin::where('email', 'like', '%@legacy.test')->exists())->toBeFalse();
+    expect(Admin::whereNotNull('legacy_id')->exists())->toBeFalse();
 });
 
 it('gives the first officer super, and keeps the office name and title', function () {
@@ -37,12 +38,12 @@ it('gives the first officer super, and keeps the office name and title', functio
     Artisan::call('legacy:accounts');
 
     $super = Admin::where('role', Admin::SUPER_ROLE)
-        ->where('email', 'like', '%@legacy.test')
+        ->whereNotNull('legacy_id')
         ->first();
 
     // The fixture's one live officer, by name, from `upengawai.Name`.
     expect($super->name)->toBe('NORAINI BINTI OSMAN')
-        ->and($super->email)->toBe('noraini@legacy.test')
+        ->and($super->username)->toBe('noraini')
         ->and($super->state)->toBeNull('Super sees every zone, so it carries none.');
 });
 
@@ -52,7 +53,7 @@ it('builds a participant with their company, craft code and booth size', functio
 
     // 'Manik/Mutiara/Karangan Laut-AMH-3x3' — the code and size are glued to a
     // craft name that itself holds punctuation.
-    $user = User::where('email', 'usahawan204@legacy.test')->first();
+    $user = User::where('legacy_id', '204')->first();
 
     expect($user->name)->toBe('SITTI WARDAHAH BINTI ALI DAHLAN')
         ->and($user->ic_number)->toBe('890508-12-0000');
@@ -71,7 +72,7 @@ it('leaves the code and size null for the older rows that carry neither', functi
 
     // The fixture's snapshot rows carry a bare 'Songket' — 89% of the real dump
     // looks like this, so guessing a code here would invent data.
-    $user = User::where('email', 'usahawan205@legacy.test')->first();
+    $user = User::where('legacy_id', '205')->first();
     $company = Company::where('user_id', $user->id)->first();
 
     expect($company->kraf_code)->toBe('RBH')
@@ -79,7 +80,7 @@ it('leaves the code and size null for the older rows that carry neither', functi
 
     // And one from the live table only: the command reads `source_table` =
     // 'usahawan', so a snapshot row must not become an account at all.
-    expect(User::where('email', 'usahawan2@legacy.test')->exists())
+    expect(User::where('legacy_id', '2')->exists())
         ->toBeFalse('Only the live AACB rows become accounts.');
 });
 
@@ -87,15 +88,15 @@ it('hands out the same role to the same officer on a re-run', function () {
     loadForAccounts();
 
     Artisan::call('legacy:accounts');
-    $first = Admin::where('email', 'noraini@legacy.test')->first();
+    $first = Admin::where('username', 'noraini')->first();
 
     Artisan::call('legacy:accounts');
-    $second = Admin::where('email', 'noraini@legacy.test')->first();
+    $second = Admin::where('username', 'noraini')->first();
 
     expect($second->id)->toBe($first->id, 'A re-run must update, not duplicate.')
         ->and($second->role)->toBe($first->role);
 
-    expect(Admin::where('email', 'noraini@legacy.test')->count())->toBe(1);
+    expect(Admin::where('username', 'noraini')->count())->toBe(1);
 });
 
 it('gives two officers who share one login two accounts, and does not let the second take the first one\'s role', function () {
@@ -109,8 +110,8 @@ it('gives two officers who share one login two accounts, and does not let the se
     // updateOrCreate does not fail: it updates the FIRST officer's row, so the
     // second one takes over the role already handed out. On the real dump that
     // built 17 admins into 16 rows and left no hq admin at all, silently.
-    $first = Admin::where('email', 'haida@legacy.test')->first();
-    $second = Admin::where('email', 'haida.31@legacy.test')->first();
+    $first = Admin::where('username', 'haida')->first();
+    $second = Admin::where('username', 'haida.31')->first();
 
     expect($first)->not->toBeNull()
         ->and($second)->not->toBeNull('The second officer was swallowed by the first.');
@@ -121,8 +122,8 @@ it('gives two officers who share one login two accounts, and does not let the se
         ->and($second->state)->toBe('Terengganu');
 
     // One role of each at the top, not two state admins.
-    expect(Admin::where('email', 'like', '%@legacy.test')->where('role', 'hq')->count())->toBe(1)
-        ->and(Admin::where('email', 'like', '%@legacy.test')->where('role', Admin::SUPER_ROLE)->count())->toBe(1);
+    expect(Admin::whereNotNull('legacy_id')->where('role', 'hq')->count())->toBe(1)
+        ->and(Admin::whereNotNull('legacy_id')->where('role', Admin::SUPER_ROLE)->count())->toBe(1);
 });
 
 it('translates a legacy zone the office dropdown does not have', function () {
@@ -142,7 +143,7 @@ it('translates a legacy zone the office dropdown does not have', function () {
 
     Artisan::call('legacy:accounts', ['--users' => 'all']);
 
-    $company = Company::whereHas('user', fn ($q) => $q->where('email', 'usahawan300@legacy.test'))->first();
+    $company = Company::whereHas('user', fn ($q) => $q->where('legacy_id', '300'))->first();
 
     // THE BUG THIS LOCKS. Stored raw, `companies.state` is 'P.Penang', which no
     // zone dropdown contains — so the edit form renders with NO option selected
@@ -160,13 +161,13 @@ it('puts every imported zone inside the office vocabulary, admins included', fun
     Artisan::call('legacy:accounts', ['--users' => 'all']);
 
     // The fixture's officer 30 carries 'Kedah(Langkawi)'.
-    foreach (Admin::where('email', 'like', '%@legacy.test')->whereNotNull('state')->get() as $admin) {
+    foreach (Admin::whereNotNull('legacy_id')->whereNotNull('state')->get() as $admin) {
         expect(AdminZones::has($admin->state))->toBeTrue(
-            "Admin {$admin->email} is on '{$admin->state}', which is not a zone."
+            "Admin {$admin->username} is on '{$admin->state}', which is not a zone."
         );
     }
 
-    foreach (Company::whereHas('user', fn ($q) => $q->where('email', 'like', '%@legacy.test'))->get() as $company) {
+    foreach (Company::whereHas('user', fn ($q) => $q->whereNotNull('legacy_id'))->get() as $company) {
         expect(AdminZones::has($company->state))->toBeTrue(
             "Company {$company->name} is on '{$company->state}', which is not a zone."
         );
@@ -220,7 +221,7 @@ it('carries the community id across, trimmed', function () {
 
     // `comid` is filled on 174 of the 175 live rows, and 2,182 rows across the
     // dump carry it with trailing spaces: '10-1-62  '.
-    expect(User::where('email', 'usahawan205@legacy.test')->value('community_id'))
+    expect(User::where('legacy_id', '205')->value('community_id'))
         ->toBe('10-1-62');
 });
 
@@ -228,7 +229,7 @@ it('never writes a password anybody could know', function () {
     loadForAccounts();
     Artisan::call('legacy:accounts');
 
-    $admin = Admin::where('email', 'noraini@legacy.test')->first();
+    $admin = Admin::where('username', 'noraini')->first();
 
     // Not the login name, not the office name, not a word from the dump.
     foreach (['noraini', 'password', 'Pengawai', 'NORAINI BINTI OSMAN'] as $guess) {
@@ -236,29 +237,27 @@ it('never writes a password anybody could know', function () {
     }
 });
 
-it('puts every address on a domain that cannot receive mail', function () {
+it('stamps every account it builds with the dump id', function () {
     loadForAccounts();
     Artisan::call('legacy:accounts');
 
-    $addresses = Admin::pluck('email')->merge(User::pluck('email'));
-
-    foreach ($addresses as $email) {
-        expect(str_ends_with($email, '.test'))->toBeTrue("{$email} is not on a reserved TLD.");
-    }
+    expect(Admin::whereNull('legacy_id')->count())->toBe(0)
+        ->and(User::whereNull('legacy_id')->count())->toBe(0)
+        ->and(Admin::count())->toBeGreaterThan(0);
 });
 
 it('clears out what it made when asked, and leaves the demo accounts alone', function () {
     loadForAccounts();
     Artisan::call('legacy:accounts');
 
-    $outsider = User::factory()->create(['email' => 'real.person@example.com']);
+    $outsider = User::factory()->create(['community_id' => 'KOM-REAL']);
 
-    // THE ONE THAT MATTERS. DemoSeeder plants accounts on `demo.test`, and this
-    // command used to build its own there too — so `--fresh` deleted both. A
-    // seeded demo participant has to survive, or a developer loses their whole
-    // demo dataset to a flag that promised to clean up after one command.
-    $demoUser = User::factory()->create(['email' => 'user.johor@demo.test']);
-    $demoAdmin = Admin::factory()->create(['email' => 'hq@demo.test', 'role' => 'hq', 'state' => null]);
+    // THE ONE THAT MATTERS. This command once shared a marker with DemoSeeder
+    // (an email domain), so `--fresh` deleted both. A seeded demo participant
+    // has to survive, or a developer loses their whole demo dataset to a flag
+    // that promised to clean up after one command.
+    $demoUser = User::factory()->create(['community_id' => 'KOM-0001']);
+    $demoAdmin = Admin::factory()->create(['username' => 'demo.hq', 'role' => 'hq', 'state' => null]);
 
     Artisan::call('legacy:accounts', ['--fresh' => true]);
 
@@ -269,5 +268,5 @@ it('clears out what it made when asked, and leaves the demo accounts alone', fun
         ->toBeTrue('--fresh deleted a DemoSeeder admin.');
 
     // And it did do its own job: the rebuild leaves exactly one of its admins.
-    expect(Admin::where('email', 'noraini@legacy.test')->count())->toBe(1);
+    expect(Admin::where('username', 'noraini')->count())->toBe(1);
 });

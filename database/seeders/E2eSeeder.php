@@ -14,8 +14,8 @@ use Illuminate\Support\Str;
  * tests/e2e/serve.js and nowhere else.
  *
  * Every account gets a random password: the suite signs in through /auto, so
- * nothing here is a password anyone could reuse. Emails are on `e2e.test`, a
- * domain nothing real is ever on.
+ * nothing here is a password anyone could reuse. Admins are `e2e-<role>`;
+ * participants carry community IDs `E2E-<HANDLE>`.
  *
  * The event's draw list is filled; its lot plan is NOT — building the plan
  * through the screens is what the draw spec is for.
@@ -33,7 +33,7 @@ class E2eSeeder extends LocalOnlySeeder
         foreach ([['super', null], ['hq', null], ['admin', 'Johor']] as [$role, $zone]) {
             Admin::create([
                 'name' => 'E2E '.ucfirst($role),
-                'email' => "e2e-{$role}@e2e.test",
+                'username' => "e2e-{$role}",
                 'password' => $password(),
                 'role' => $role,
                 'state' => $zone,
@@ -60,7 +60,7 @@ class E2eSeeder extends LocalOnlySeeder
         ] as [$name, $zone, $handle, $code, $size, $ic]) {
             $user = User::create([
                 'name' => "Owner {$name}",
-                'email' => "{$handle}@e2e.test",
+                'community_id' => 'E2E-'.strtoupper($handle),
                 'password' => $password(),
                 'ic_number' => $ic,
                 'is_active' => true,

@@ -46,7 +46,7 @@ class DevAutoLoginController extends Controller
         $this->ensureLocal();
 
         return response()->view('dev.auto-login', [
-            'admins' => Admin::orderBy('role')->orderBy('state')->orderBy('email')->get(),
+            'admins' => Admin::orderBy('role')->orderBy('state')->orderBy('username')->get(),
             'users' => User::with('company')->orderBy('id')->get(),
             'queued' => DB::table('jobs')->count(),
         ], 200, self::NO_STORE);
@@ -55,7 +55,7 @@ class DevAutoLoginController extends Controller
     public function loginAdmin(Request $request, Admin $admin)
     {
         $this->ensureLocal();
-        $this->log($request, 'admin', $admin->email);
+        $this->log($request, 'admin', $admin->username);
 
         // Drop the other guard first, or one session holds a user and an admin
         // at once and the two portals disagree about who you are.
@@ -69,7 +69,7 @@ class DevAutoLoginController extends Controller
     public function loginUser(Request $request, User $user)
     {
         $this->ensureLocal();
-        $this->log($request, 'web', $user->email);
+        $this->log($request, 'web', $user->community_id ?? 'user#'.$user->id);
 
         auth()->guard('admin')->logout();
         auth()->guard('web')->login($user);
@@ -110,8 +110,8 @@ class DevAutoLoginController extends Controller
     }
 
     /** Who became whom. Nothing here changes a row, so it is a log line, not an audit row. */
-    private function log(Request $request, string $guard, string $email): void
+    private function log(Request $request, string $guard, string $who): void
     {
-        Log::warning('dev auto-login', ['guard' => $guard, 'to' => $email, 'ip' => $request->ip()]);
+        Log::warning('dev auto-login', ['guard' => $guard, 'to' => $who, 'ip' => $request->ip()]);
     }
 }

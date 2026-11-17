@@ -19,13 +19,13 @@ dataset('switchable admins', [
 it('refuses to sign in a switched-off admin, saying why only to the right password', function (Admin $admin) {
     $admin->update(['is_active' => false]);
 
-    $this->post(route('admin.login'), ['email' => $admin->email, 'password' => 'kraf1234'])
-        ->assertSessionHasErrors(['email' => 'This admin account has been switched off. Contact HQ to have it switched back on.']);
+    $this->post(route('admin.login'), ['username' => $admin->username, 'password' => 'kraf1234'])
+        ->assertSessionHasErrors(['username' => 'This admin account has been switched off. Contact HQ to have it switched back on.']);
     $this->assertGuest('admin');
 
     // A wrong password learns nothing about the account.
-    $this->post(route('admin.login'), ['email' => $admin->email, 'password' => 'wrong-one1'])
-        ->assertSessionHasErrors(['email' => trans('auth.failed')]);
+    $this->post(route('admin.login'), ['username' => $admin->username, 'password' => 'wrong-one1'])
+        ->assertSessionHasErrors(['username' => trans('auth.failed')]);
     $this->assertGuest('admin');
 })->with('switchable admins');
 
@@ -33,7 +33,7 @@ it('signs in once switched back on', function (Admin $admin) {
     $admin->update(['is_active' => false]);
     $admin->update(['is_active' => true]);
 
-    $this->post(route('admin.login'), ['email' => $admin->email, 'password' => 'kraf1234'])
+    $this->post(route('admin.login'), ['username' => $admin->username, 'password' => 'kraf1234'])
         ->assertRedirect(route('admin.dashboard'));
     $this->assertAuthenticatedAs($admin, 'admin');
 })->with('switchable admins');
@@ -42,7 +42,7 @@ it('puts out an admin already signed in, on their next click', function (Admin $
     // A real sign-in, so the session carries it. actingAs() does not write the
     // session: after forgetGuards() the next request would be a plain guest,
     // put out by auth:admin, and this would pass without the middleware.
-    $this->post(route('admin.login'), ['email' => $admin->email, 'password' => 'kraf1234']);
+    $this->post(route('admin.login'), ['username' => $admin->username, 'password' => 'kraf1234']);
     auth()->forgetGuards();
     $this->get(route('admin.dashboard'))->assertOk();
 
@@ -51,7 +51,7 @@ it('puts out an admin already signed in, on their next click', function (Admin $
 
     $this->get(route('admin.dashboard'))
         ->assertRedirect(route('admin.login'))
-        ->assertSessionHasErrors('email');
+        ->assertSessionHasErrors('username');
     $this->assertGuest('admin');
 })->with('switchable admins');
 
@@ -81,7 +81,7 @@ it('lets HQ switch off a state admin, and no one else', function () {
     $this->patch(route('admin.admins.active', $super))->assertForbidden();
     // Nor through the edit form.
     $this->put(route('admin.admins.update', $peer), [
-        'name' => $peer->name, 'email' => $peer->email, 'role' => 'admin', 'state' => 'Johor',
+        'name' => $peer->name, 'username' => $peer->username, 'role' => 'admin', 'state' => 'Johor',
     ])->assertForbidden();
 
     expect($peer->fresh()->is_active)->toBeTrue()
@@ -100,7 +100,7 @@ it('never switches off your own account, by button or by form', function () {
 
     $this->patch(route('admin.admins.active', $me))->assertSessionHasErrors();
     $this->put(route('admin.admins.update', $me), [
-        'name' => $me->name, 'email' => $me->email, 'role' => 'super',   // no is_active: unticked
+        'name' => $me->name, 'username' => $me->username, 'role' => 'super',   // no is_active: unticked
     ])->assertSessionHas('success');
 
     expect($me->fresh()->is_active)->toBeTrue();
@@ -115,7 +115,7 @@ it('never switches off your own account, by button or by form', function () {
 it('switches an admin off and on from the edit form', function () {
     $this->actingAs(superAdmin(), 'admin');
     $state = stateAdmin();
-    $form = ['name' => $state->name, 'email' => $state->email, 'role' => 'admin', 'state' => 'Johor'];
+    $form = ['name' => $state->name, 'username' => $state->username, 'role' => 'admin', 'state' => 'Johor'];
 
     $this->put(route('admin.admins.update', $state), $form)->assertSessionHas('success');   // unticked
     expect($state->fresh()->is_active)->toBeFalse();
@@ -128,11 +128,11 @@ it('creates an admin switched on when the box stays ticked, off when it is clear
     $this->actingAs(superAdmin(), 'admin');
     $base = ['role' => 'admin', 'state' => 'Johor', 'password' => 'kraf12345', 'password_confirmation' => 'kraf12345'];
 
-    $this->post(route('admin.admins.store'), $base + ['name' => 'On', 'email' => 'on@kraf.test', 'is_active' => '1']);
-    $this->post(route('admin.admins.store'), $base + ['name' => 'Off', 'email' => 'off@kraf.test']);
+    $this->post(route('admin.admins.store'), $base + ['name' => 'On', 'username' => 'on', 'is_active' => '1']);
+    $this->post(route('admin.admins.store'), $base + ['name' => 'Off', 'username' => 'off']);
 
-    expect(Admin::where('email', 'on@kraf.test')->value('is_active'))->toBeTruthy()
-        ->and(Admin::where('email', 'off@kraf.test')->value('is_active'))->toBeFalsy();
+    expect(Admin::where('username', 'on')->value('is_active'))->toBeTruthy()
+        ->and(Admin::where('username', 'off')->value('is_active'))->toBeFalsy();
 
     // And the create form starts ticked — that box, not some other.
     $html = $this->get(route('admin.admins.create', ['group' => 'state']))->getContent();

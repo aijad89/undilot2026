@@ -40,7 +40,7 @@ it('indexes the columns the importers and the lot screens look rows up by', func
         return false;
     };
 
-    // `import:participants` and `legacy:emails` both find a participant by IC;
+    // `import:participants` finds a participant by IC, the sign-in by both;
     // `community_id` is the office's other handle on the same person.
     expect($indexed('users', 'ic_number'))->toBeTrue('users.ic_number is not indexed.')
         ->and($indexed('users', 'community_id'))->toBeTrue('users.community_id is not indexed.');

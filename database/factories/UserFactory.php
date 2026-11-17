@@ -29,7 +29,6 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
             'password' => static::$password ??= bcrypt('password'),
             'phone' => fake()->numerify('01#-#######'),
             // Dashed, as the Companies screen stores it.
@@ -37,6 +36,7 @@ class UserFactory extends Factory
             'community_id' => null,
             'address' => null,
             'is_active' => true,
+            'legacy_id' => null,
             'last_seen_at' => null,
             'remember_token' => Str::random(10),
         ];

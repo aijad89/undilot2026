@@ -32,7 +32,7 @@
 
     <form method="GET" class="mac-filter-bar mb-3">
         <input type="search" name="search" value="{{ request('search') }}"
-               class="mac-input" placeholder="Name or email" aria-label="Search admins">
+               class="mac-input" placeholder="Name or username" aria-label="Search admins">
 
         @unless($isHq)
             <select name="state" class="mac-select" aria-label="Filter by zone">
@@ -67,7 +67,7 @@
                                 @if($admin->is($actor))
                                     <span class="mac-badge mac-badge-gray ms-1">You</span>
                                 @endif
-                                <div class="mac-text-sm mac-muted">{{ $admin->email }}</div>
+                                <div class="mac-text-sm mac-muted">{{ $admin->username }}</div>
                             </td>
                             <td class="mac-text-sm">
                                 @if($isHq)

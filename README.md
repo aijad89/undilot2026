@@ -6,7 +6,7 @@ mengandungi lima modul.
 
 | Modul | Route utama |
 |---|---|
-| Log masuk peserta | `/login`, `/forgot-password` |
+| Log masuk peserta (ID Komuniti + IC) | `/login` |
 | Log masuk admin (super / HQ / negeri, satu halaman) | `/admin/login` |
 | Akses admin negeri (ditapis ikut zon) | peranan `state` pada akaun admin |
 | Acara + senarai cabutan | `/admin/events`, `/admin/events/{event}/registrations`, `/events/{event}` |
@@ -22,7 +22,7 @@ senarai cabutan sendiri. Data sebenar akan dimuat dari CSV (belum ada).
 composer install
 cp .env.example .env
 php artisan key:generate
-# tetapkan DB_* dan ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD dalam .env
+# tetapkan DB_* dan ADMIN_SEED_USERNAME / ADMIN_SEED_PASSWORD dalam .env
 php artisan migrate:fresh --seed
 ```
 

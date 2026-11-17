@@ -20,15 +20,17 @@
         @csrf
 
         <div class="mb-3">
-            <label for="email" class="form-label fw-semibold">Email</label>
-            <input type="email"
-                   class="form-control form-control-lg @error('email') is-invalid @enderror"
-                   id="email"
-                   name="email"
-                   value="{{ old('email') }}"
-                   placeholder="admin@example.com"
+            <label for="username" class="form-label fw-semibold">Username</label>
+            <input type="text"
+                   class="form-control form-control-lg @error('username') is-invalid @enderror"
+                   id="username"
+                   name="username"
+                   value="{{ old('username') }}"
+                   autocomplete="username"
+                   autocapitalize="none"
+                   spellcheck="false"
                    required autofocus>
-            @error('email')
+            @error('username')
                 <div class="invalid-feedback">{{ $message }}</div>
             @enderror
         </div>

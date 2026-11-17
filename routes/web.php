@@ -51,12 +51,9 @@ Route::middleware(['auth:web', 'user.active'])->group(function () {
     Route::post('/events/{event}/lot', [LotDrawController::class, 'submit'])->name('zvote.submit');
     Route::get('/events/{event}/lot/slip', [LotDrawController::class, 'slip'])->name('zvote.slip');
 
-    // Read-only account facts, and the password. Throttled: the current
-    // password is checked here, and must not be guessable by repetition.
+    // Read-only account facts. No password change: participants sign in with
+    // community ID + IC and never hold a password (owner, 2026-11-17).
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
-    Route::put('/profile/password', [ProfileController::class, 'password'])
-        ->middleware('throttle:6,1')
-        ->name('profile.password');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');

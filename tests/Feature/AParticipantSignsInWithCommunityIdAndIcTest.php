@@ -6,7 +6,8 @@ use App\Models\User;
 /*
  * Participants sign in with COMMUNITY ID + IC NUMBER and no password (owner's
  * decision 2026-11-17: participants have no email, so the emailed reset link
- * that sets a password could never reach them). Admins keep email + password.
+ * that sets a password could never reach them). Officers sign in with username +
+ * password; no email anywhere.
  *
  * Both values must belong to the SAME account. The IC is compared as digits,
  * the ID trimmed and without regard to case.
@@ -108,17 +109,17 @@ it('asks for the ID and IC, and offers no password or reset link', function () {
         ->assertDontSee('Forgot password');
 });
 
-it('gives a company created without an email a placeholder one, and requires the ID and IC', function () {
+it('creates a company with no email, and requires the ID and IC', function () {
     $this->actingAs(superAdmin(), 'admin');
 
     $this->post(route('admin.companies.store'), [
         'name' => 'Kraf Tanpa Emel', 'state' => 'Johor', 'owner_name' => 'Aminah',
-    ])->assertSessionHasErrors(['ic_number', 'community_id'])->assertSessionDoesntHaveErrors('email');
+    ])->assertSessionHasErrors(['ic_number', 'community_id']);
 
     $this->post(route('admin.companies.store'), [
         'name' => 'Kraf Tanpa Emel', 'state' => 'Johor', 'owner_name' => 'Aminah',
         'ic_number' => '900101-01-2222', 'community_id' => 'KOM-0003',
     ])->assertSessionHasNoErrors();
 
-    expect(User::where('community_id', 'KOM-0003')->value('email'))->toBe('peserta900101012222@legacy.test');
+    expect(User::where('community_id', 'KOM-0003')->value('ic_number'))->toBe('900101-01-2222');
 });

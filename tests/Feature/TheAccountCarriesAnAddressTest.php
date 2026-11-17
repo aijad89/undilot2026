@@ -20,7 +20,7 @@ function companyPut(Company $company, array $overrides = []): array
 {
     return array_merge([
         'name' => $company->name, 'state' => 'Perak',
-        'owner_name' => $company->user->name, 'email' => $company->user->email,
+        'owner_name' => $company->user->name,
         'ic_number' => $company->user->ic_number, 'community_id' => 'KOM-0001',
         'is_active' => '1', 'account_active' => '1',
     ], $overrides);
@@ -44,12 +44,12 @@ it('saves the address from the edit form, and shows it back', function () {
 it('saves the address when the company is created', function () {
     $this->actingAs(superAdmin(), 'admin')->post(route('admin.companies.store'), [
         'name' => 'Baru Beralamat', 'state' => 'Perak',
-        'owner_name' => 'Siti', 'email' => 'siti@example.test',
+        'owner_name' => 'Siti',
         'ic_number' => '900101-08-1111', 'community_id' => 'KOM-0002',
         'address' => 'Lot 5, Kampung Kraf, Kuala Kangsar',
     ])->assertSessionHasNoErrors();
 
-    expect(User::where('email', 'siti@example.test')->value('address'))->toBe('Lot 5, Kampung Kraf, Kuala Kangsar');
+    expect(User::where('community_id', 'KOM-0002')->value('address'))->toBe('Lot 5, Kampung Kraf, Kuala Kangsar');
 });
 
 it('clears the address when the field is emptied', function () {

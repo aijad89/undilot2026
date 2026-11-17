@@ -15,8 +15,8 @@ use Illuminate\Support\Str;
  * with a craft code and one craft selection (its first classification and
  * product ticked) when DemoHierarchySeeder has run first.
  *
- * Emails are `user.<zone>@demo.test`, random passwords — sign in via /auto.
- * Re-runnable: matched on email.
+ * Community IDs are `KOM-0001`… in AdminZones order; they sign in with that
+ * ID and their IC (or via /auto). Re-runnable: matched on community ID.
  */
 class DemoUserSeeder extends LocalOnlySeeder
 {
@@ -50,6 +50,18 @@ class DemoUserSeeder extends LocalOnlySeeder
         ['Pua Kumbu Sarawak', 'TTN', '741219-13-5456'],
     ];
 
+    /** The demo participant's community ID for a zone: KOM-0001 is Johor. */
+    public static function communityIdFor(string $zone): string
+    {
+        $index = array_search($zone, AdminZones::DEFAULTS, true);
+
+        if ($index === false) {
+            throw new \InvalidArgumentException("No demo participant for zone {$zone}.");
+        }
+
+        return sprintf('KOM-%04d', $index + 1);
+    }
+
     public function run(): void
     {
         $subs = KrafSubBidang::with(['pengelasan', 'produks'])->orderBy('id')->get();
@@ -57,12 +69,11 @@ class DemoUserSeeder extends LocalOnlySeeder
         foreach (AdminZones::DEFAULTS as $i => $zone) {
             [$name, $code, $ic] = self::COMPANIES[$i];
 
-            $user = User::firstOrCreate(['email' => 'user.'.Str::slug($zone).'@demo.test'], [
+            $user = User::firstOrCreate(['community_id' => self::communityIdFor($zone)], [
                 'name' => "Owner {$name}",
                 'password' => Str::random(40),
                 'phone' => '01'.random_int(10000000, 99999999),
                 'ic_number' => $ic,
-                'community_id' => sprintf('KOM-%04d', $i + 1),
                 'is_active' => true,
             ]);
 

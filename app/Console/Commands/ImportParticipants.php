@@ -54,14 +54,13 @@ class ImportParticipants extends Command
 
     /** Every column the importer reads. Anything else in the sheet is ignored and reported. */
     private const KNOWN = [
-        'nama', 'ic', 'telefon', 'emel', 'syarikat', 'zon',
+        'nama', 'ic', 'telefon', 'syarikat', 'zon',
         'kod_kraf', 'saiz_gerai', 'kategori_usahawan', 'no_komuniti', 'alamat',
     ];
 
     private array $planned = [];
     private array $failed = [];
     private array $ignoredColumns = [];
-    private int $generatedEmails = 0;
 
     public function handle(): int
     {
@@ -111,13 +110,6 @@ class ImportParticipants extends Command
         $this->newLine();
         $this->line("Written: {$written['created']} new, {$written['updated']} updated.");
 
-        if ($this->generatedEmails > 0) {
-            $this->newLine();
-            $this->line($this->generatedEmails.' participant(s) had no email, so a placeholder was written on '
-                .LegacyAccounts::MAIL_DOMAIN.'. They sign in with community ID + IC, so this does not stop them;');
-            $this->line('`legacy:emails` replaces the placeholder if a real address arrives later.');
-        }
-
         // Participants sign in with community ID + IC (LoginRequest). Without
         // the ID the row is written, but that person cannot sign in.
         $noId = count(array_filter($this->planned, fn ($p) => $p['community'] === ''));
@@ -164,7 +156,8 @@ class ImportParticipants extends Command
         }
 
         // Columns the office added for its own use are reported, not silently
-        // dropped: a misspelled `emel` looks exactly like an extra column.
+        // dropped: a misspelled `alamat` looks exactly like an extra column.
+        // An `emel` column lands here too — the project keeps no email.
         $this->ignoredColumns = array_values(array_filter(
             $header,
             fn ($h) => $h !== '' && ! in_array($h, self::KNOWN, true) && ! str_starts_with($h, '_')
@@ -285,7 +278,6 @@ class ImportParticipants extends Command
                 'ic' => $ic,
                 'name' => $name,
                 'ic_raw' => $row['ic'],
-                'email' => strtolower($row['emel'] ?? ''),
                 'phone' => $row['telefon'] ?? '',
                 'company' => $row['syarikat'] ?? '',
                 'zone' => $zone,
@@ -307,7 +299,7 @@ class ImportParticipants extends Command
         $updated = 0;
 
         // Existing participants keyed the same way the sheet is matched, so a
-        // re-run updates rather than collides with the unique email index.
+        // re-run updates the same person rather than adding a second one.
         $byIc = User::whereNotNull('ic_number')->get()
             ->groupBy(fn (User $u) => self::digits($u->ic_number))
             ->reject(fn ($group) => $group->count() > 1)
@@ -320,8 +312,8 @@ class ImportParticipants extends Command
 
                     if ($user === null) {
                         $user = new User;
-                        // Random, and never told to anyone: the participant
-                        // proves an address is theirs through Forgot Password.
+                        // Random, and never told to anyone: participants sign
+                        // in with community ID + IC, not a password.
                         $user->password = bcrypt(Str::random(32));
                         $created++;
                     } else {
@@ -329,7 +321,6 @@ class ImportParticipants extends Command
                     }
 
                     $user->name = $plan['name'];
-                    $user->email = $plan['email'] !== '' ? $plan['email'] : $this->generatedEmail($plan, $user);
                     $user->ic_number = $plan['ic_raw'];
                     $user->phone = $plan['phone'] !== '' ? $plan['phone'] : null;
                     $user->community_id = $plan['community'] !== '' ? $plan['community'] : null;
@@ -368,25 +359,6 @@ class ImportParticipants extends Command
         return ['created' => $created, 'updated' => $updated];
     }
 
-    /**
-     * An address on a reserved TLD that can never receive mail — the same domain
-     * `legacy:emails` later replaces, so that command can find these rows.
-     */
-    private function generatedEmail(array $plan, User $user): string
-    {
-        if (str_ends_with(strtolower((string) $user->email), '@'.LegacyAccounts::MAIL_DOMAIN)) {
-            return $user->email;   // already generated on an earlier run; leave it
-        }
-
-        if ($user->exists && $user->email) {
-            return $user->email;   // a real address already on file is not overwritten
-        }
-
-        $this->generatedEmails++;
-
-        return 'peserta'.$plan['ic'].'@'.LegacyAccounts::MAIL_DOMAIN;
-    }
-
     private function report(): void
     {
         $this->newLine();
@@ -403,7 +375,7 @@ class ImportParticipants extends Command
         $this->newLine();
         $this->line('Blank cells, stored as nothing rather than guessed:');
 
-        foreach (['email' => 'emel', 'phone' => 'telefon', 'company' => 'syarikat', 'zone' => 'zon',
+        foreach (['phone' => 'telefon', 'company' => 'syarikat', 'zone' => 'zon',
             'code' => 'kod_kraf', 'size' => 'saiz_gerai', 'category' => 'kategori_usahawan',
             'community' => 'no_komuniti', 'address' => 'alamat'] as $key => $label) {
             $n = $blank($key);

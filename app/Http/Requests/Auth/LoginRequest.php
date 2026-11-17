@@ -23,7 +23,8 @@ use Illuminate\Validation\ValidationException;
  * participant's documents. The owner has asked for this to be revisited by the
  * team later; until then the rate limit below is the only brake on guessing.
  *
- * Admins are untouched: /admin/login is still email + password.
+ * Admins (officers) sign in at /admin/login with username + password. No email
+ * anywhere in the project.
  */
 class LoginRequest extends FormRequest
 {

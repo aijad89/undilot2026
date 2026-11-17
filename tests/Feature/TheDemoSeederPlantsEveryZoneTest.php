@@ -9,7 +9,7 @@ use App\Models\Poll;
 use App\Support\AdminZones;
 use Database\Seeders\DemoSeeder;
 use Database\Seeders\KrafCodeSeeder;
-use Illuminate\Support\Str;
+use Database\Seeders\DemoUserSeeder;
 
 /**
  * The demo seeder plants one state admin and one company per zone, and running
@@ -21,7 +21,7 @@ it('plants one admin and one company per zone, and is safe to run twice', functi
 
     $zones = count(AdminZones::DEFAULTS);
     // One per zone from DemoUserSeeder; DemoScenarioSeeder adds Johor extras on top.
-    $perZone = Company::whereHas('user', fn ($q) => $q->whereIn('email', array_map(fn ($z) => 'user.'.Str::slug($z).'@demo.test', AdminZones::DEFAULTS)));
+    $perZone = Company::whereHas('user', fn ($q) => $q->whereIn('community_id', array_map(fn ($z) => DemoUserSeeder::communityIdFor($z), AdminZones::DEFAULTS)));
 
     expect(Admin::where('role', 'admin')->distinct()->count('state'))->toBe($zones)
         ->and(Admin::where('role', 'admin')->count())->toBe($zones)

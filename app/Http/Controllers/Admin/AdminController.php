@@ -24,7 +24,7 @@ use Illuminate\Validation\Rules\Password;
  *
  * Close either one alone and the other stays open. Target only: hq takes a state
  * admin and sets role=super. Role list only: hq leaves a super's role alone and
- * rewrites its email and password, which is account takeover.
+ * rewrites its username and password, which is account takeover.
  *
  * The last super cannot be deleted or demoted; that floor is on the model
  * (Admin::booted()), and its ValidationException returns to the form like any
@@ -44,7 +44,7 @@ class AdminController extends Controller
         $admins = Admin::query()
             ->whereIn('role', self::GROUP_ROLES[$group])
             ->when($request->input('search'), fn ($q, $search) => $q->where(
-                fn ($w) => $w->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")
+                fn ($w) => $w->where('name', 'like', "%{$search}%")->orWhere('username', 'like', "%{$search}%")
             ))
             ->when($group === 'state' && $request->input('state'), fn ($q, $zone) => $q->where('state', $zone))
             // Supers first in the hq list: they are the ones that manage everyone else.
@@ -181,7 +181,10 @@ class AdminController extends Controller
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('admins')->ignore($admin?->id)],
+            // What the officer signs in with — no email in this project. Letters,
+            // digits, dot, dash, underscore; stored lower-cased (attributes()),
+            // as AdminLoginRequest compares it.
+            'username' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('admins', 'username')->ignore($admin?->id)],
             'role' => ['required', Rule::in(array_keys(Admin::ROLES))],
             // A state admin's zone is what scopes everything they see, so it is
             // required and must be a zone that exists. HQ and super have none.
@@ -198,7 +201,7 @@ class AdminController extends Controller
     {
         $attributes = [
             'name' => $data['name'],
-            'email' => $data['email'],
+            'username' => strtolower(trim($data['username'])),
             'role' => $data['role'],
             'state' => $data['role'] === 'admin' ? $data['state'] : null,
         ];

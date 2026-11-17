@@ -5,7 +5,6 @@ namespace App\Notifications;
 use App\Models\Event;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
@@ -15,8 +14,7 @@ use Illuminate\Notifications\Notification;
  * self-registration in undilot: the office enters every company, so nothing a
  * participant does could have told them. Without this they sign in to a
  * dashboard that says nothing and a lot they were never asked to confirm.
- * Mail matters as much as the database row: a participant who never opens the
- * portal must still hear about it.
+ * In-app only: they see it on their dashboard when they sign in.
  *
  * Sent ONCE, on HQ's first verification — `first_verified_at`. A row verified
  * before, edited by a zone and verified again, has nothing new to announce.
@@ -36,18 +34,14 @@ class AddedToDraw extends Notification implements ShouldQueue
         $this->afterCommit();
     }
 
+    /**
+     * In-app only. The app sends no email at all (owner's decision,
+     * 2026-11-17): participants sign in with community ID + IC and most
+     * give no address. Do not add 'mail' back without that decision.
+     */
     public function via($notifiable): array
     {
-        return ['mail', 'database'];
-    }
-
-    public function toMail($notifiable): MailMessage
-    {
-        return (new MailMessage)
-            ->greeting('Hi '.$notifiable->name.',')
-            ->subject('You are in the draw: '.$this->event->title)
-            ->line('Your company is in the lot draw for '.$this->event->title.'.')
-            ->action('Open dashboard', route('dashboard'));
+        return ['database'];
     }
 
     /**

@@ -60,8 +60,18 @@ return new class extends Migration
         Schema::create('admins', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('email')->unique();
+
+            // What the officer signs in with, with `password`. NO EMAIL: the
+            // project uses none, anywhere (owner's decision, 2026-11-17).
+            // Unique, compared lower-cased by AdminLoginRequest — MySQL's
+            // collation compares it that way too.
+            $table->string('username', 50)->unique();
             $table->string('password');
+
+            // The `upengawai` id this account was built from by legacy:accounts
+            // (dev only), so `--fresh` finds its own rows. Null for every
+            // account made in the app.
+            $table->string('legacy_id', 20)->nullable()->index();
 
             // Three roles: admin (one state), hq, super. The vocabulary and the
             // rules about who may hand out which live in Admin::ROLES and
@@ -604,8 +614,8 @@ return new class extends Migration
             $table->string('source_table', 100)->nullable();
 
             // `upengawai`: the old officers table. There is NO email column in
-            // it — it signed in with `loginname` — and `admins.email` is unique
-            // and required, so the transform has to be given or build one.
+            // it — it signed in with `loginname`, which legacy:accounts turns
+            // into `admins.username`.
             $table->string('name', 100)->nullable();
             $table->string('password', 100)->nullable();
             $table->string('userright', 100)->nullable();
@@ -649,12 +659,12 @@ return new class extends Migration
              * `ukhemah`, which does carry `event`. A transform that reads a lot
              * from here would hand the last draw's result to every event.
              *
-             * IDENTITY IS THE OTHER PROBLEM. There is no email and no password,
-             * while `users.email` is unique and required. So `ic` is the only
-             * candidate key — and the dump indexes it without a UNIQUE, so two
-             * rows may share one, and a row may carry ''. Both collide with
-             * `users.email` unique and `companies.user_id` unique, and have to
-             * be resolved before the insert rather than discovered during it.
+             * IDENTITY IS THE OTHER PROBLEM. There is no email and no password.
+             * `ic` is the only candidate key — and the dump indexes it without a
+             * UNIQUE, so two rows may share one, and a row may carry ''.
+             * legacy:accounts keys the accounts it builds on `users.legacy_id`
+             * instead, and `companies.user_id` unique still has to be resolved
+             * before the insert rather than discovered during it.
              */
             $table->string('name', 200)->nullable();
             $table->string('ic', 20)->nullable();

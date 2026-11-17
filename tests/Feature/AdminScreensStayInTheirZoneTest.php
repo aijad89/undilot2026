@@ -38,7 +38,6 @@ it('refuses a state admin writing into another zone, even when they post the zon
             'name' => 'Kraf Elsewhere',
             'state' => 'Kedah',
             'owner_name' => 'Owner',
-            'email' => 'owner@example.test',
         ])
         ->assertSessionHasErrors('state');
 

@@ -12,7 +12,7 @@ function newAdminInput(array $overrides = []): array
 {
     return $overrides + [
         'name' => 'Nora Johor',
-        'email' => 'nora@kraftangan.test',
+        'username' => 'nora',
         'role' => 'admin',
         'state' => 'Johor',
         'password' => 'secret123',
@@ -45,15 +45,15 @@ it('lets hq create a state admin, and nothing above one', function () {
 
     $this->actingAs($hq, 'admin')->post(route('admin.admins.store'), newAdminInput())
         ->assertRedirect(route('admin.admins.state'));
-    expect(Admin::where('email', 'nora@kraftangan.test')->sole())
+    expect(Admin::where('username', 'nora')->sole())
         ->role->toBe('admin')->state->toBe('Johor');
 
     foreach (['hq', 'super'] as $i => $role) {
         $this->actingAs($hq, 'admin')
-            ->post(route('admin.admins.store'), newAdminInput(['role' => $role, 'email' => "climb{$i}@kraftangan.test"]))
+            ->post(route('admin.admins.store'), newAdminInput(['role' => $role, 'username' => "climb{$i}"]))
             ->assertForbidden();
     }
-    expect(Admin::where('email', 'like', 'climb%')->count())->toBe(0);
+    expect(Admin::where('username', 'like', 'climb%')->count())->toBe(0);
 });
 
 it('keeps hq off super and hq accounts, by edit, update and delete', function () {
@@ -62,7 +62,7 @@ it('keeps hq off super and hq accounts, by edit, update and delete', function ()
     foreach ([superAdmin(), Admin::factory()->hq()->create()] as $target) {
         $this->actingAs($hq, 'admin')->get(route('admin.admins.edit', $target))->assertForbidden();
         $this->actingAs($hq, 'admin')
-            ->put(route('admin.admins.update', $target), newAdminInput(['email' => $target->email, 'password' => null, 'password_confirmation' => null]))
+            ->put(route('admin.admins.update', $target), newAdminInput(['username' => $target->username, 'password' => null, 'password_confirmation' => null]))
             ->assertForbidden();
         $this->actingAs($hq, 'admin')->delete(route('admin.admins.destroy', $target))->assertForbidden();
 
@@ -75,7 +75,7 @@ it('stops hq promoting a state admin', function () {
     $state = stateAdmin();
 
     $this->actingAs($hq, 'admin')
-        ->put(route('admin.admins.update', $state), newAdminInput(['email' => $state->email, 'role' => 'super', 'state' => null, 'password' => null, 'password_confirmation' => null]))
+        ->put(route('admin.admins.update', $state), newAdminInput(['username' => $state->username, 'role' => 'super', 'state' => null, 'password' => null, 'password_confirmation' => null]))
         ->assertForbidden();
 
     expect($state->fresh()->role)->toBe('admin');
@@ -101,7 +101,7 @@ it('needs a real zone for a state admin, and keeps none for hq', function () {
         ->assertSessionHasErrors('state');
 
     $this->actingAs($super, 'admin')->post(route('admin.admins.store'), newAdminInput(['role' => 'hq', 'state' => 'Johor']));
-    expect(Admin::where('email', 'nora@kraftangan.test')->sole()->state)->toBeNull();
+    expect(Admin::where('username', 'nora')->sole()->state)->toBeNull();
 });
 
 it('requires a password on create, and keeps the old one when edit leaves it blank', function () {
@@ -114,7 +114,7 @@ it('requires a password on create, and keeps the old one when edit leaves it bla
     $state = stateAdmin();
     $hash = $state->password;
     $this->actingAs($super, 'admin')
-        ->put(route('admin.admins.update', $state), newAdminInput(['name' => 'Renamed', 'email' => $state->email, 'password' => null, 'password_confirmation' => null]))
+        ->put(route('admin.admins.update', $state), newAdminInput(['name' => 'Renamed', 'username' => $state->username, 'password' => null, 'password_confirmation' => null]))
         ->assertRedirect(route('admin.admins.state'));
 
     expect($state->fresh())->name->toBe('Renamed')->password->toBe($hash);
@@ -125,7 +125,7 @@ it('will not let the last super be demoted or anyone delete themselves', functio
 
     $this->actingAs($super, 'admin')
         ->from(route('admin.admins.edit', $super))
-        ->put(route('admin.admins.update', $super), newAdminInput(['email' => $super->email, 'role' => 'hq', 'state' => null, 'password' => null, 'password_confirmation' => null]))
+        ->put(route('admin.admins.update', $super), newAdminInput(['username' => $super->username, 'role' => 'hq', 'state' => null, 'password' => null, 'password_confirmation' => null]))
         ->assertSessionHasErrors('role');
     expect($super->fresh()->role)->toBe('super');
 

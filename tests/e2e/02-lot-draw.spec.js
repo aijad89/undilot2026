@@ -17,7 +17,7 @@ let eventUrl;
 
 test('the office builds a two-location plan with the plan builder', async ({ page }) => {
     const errors = watchErrors(page);
-    await signInAs(page, 'e2e-super@e2e.test');
+    await signInAs(page, 'e2e-super');
 
     await page.goto('/admin/polling/create');
     await page.selectOption('[name=event_id]', { label: 'E2E Fair' });
@@ -75,7 +75,7 @@ test('the office builds a two-location plan with the plan builder', async ({ pag
 });
 
 test('a preset across craft codes is asked about first, and kept on OK', async ({ page }) => {
-    await signInAs(page, 'e2e-super@e2e.test');
+    await signInAs(page, 'e2e-super');
     await page.goto(eventUrl);
     await page.getByRole('tab', { name: 'Setup' }).click();
 
@@ -94,7 +94,7 @@ test('a preset across craft codes is asked about first, and kept on OK', async (
 });
 
 test('the preset is taken back, which the draw page says plainly', async ({ page }) => {
-    await signInAs(page, 'e2e-super@e2e.test');
+    await signInAs(page, 'e2e-super');
     await page.goto(eventUrl);
     await page.getByRole('tab', { name: 'Draw list' }).click();
 
@@ -107,7 +107,7 @@ test('the preset is taken back, which the draw page says plainly', async ({ page
 });
 
 test('voting opens through its guard', async ({ page }) => {
-    await signInAs(page, 'e2e-super@e2e.test');
+    await signInAs(page, 'e2e-super');
     await page.goto(eventUrl);
 
     const dialog = acceptDialog(page);
@@ -119,8 +119,8 @@ test('voting opens through its guard', async ({ page }) => {
 });
 
 test('two participants confirm, and each sees a lot of their own code revealed', async ({ page }) => {
-    for (const [email, code] of [['tenun@e2e.test', 'TTN'], ['logam@e2e.test', 'LEH']]) {
-        await signInAs(page, email);
+    for (const [who, code] of [['E2E-TENUN', 'TTN'], ['E2E-LOGAM', 'LEH']]) {
+        await signInAs(page, who);
         // The draw card's own button; the to-do row above it goes to the same page.
         await page.getByRole('link', { name: 'Confirm Lot', exact: true }).click();
 
@@ -143,7 +143,7 @@ test('two participants confirm, and each sees a lot of their own code revealed',
 });
 
 test('the office closes voting and assigns the rest, and the draw completes', async ({ page }) => {
-    await signInAs(page, 'e2e-super@e2e.test');
+    await signInAs(page, 'e2e-super');
     await page.goto(eventUrl);
 
     let dialog = acceptDialog(page);
@@ -157,6 +157,6 @@ test('the office closes voting and assigns the rest, and the draw completes', as
     await expect(page.locator('.alert-success')).toContainText('Every company in the draw now has a lot');
     await expect(page.locator('.draw-band [aria-current="step"]')).toHaveText(/End/);
 
-    await signInAs(page, 'kayu@e2e.test');
+    await signInAs(page, 'E2E-KAYU');
     await expect(page.getByText(/DEWAN B-RKP1/)).toBeVisible();
 });

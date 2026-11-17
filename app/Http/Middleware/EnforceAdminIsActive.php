@@ -31,7 +31,7 @@ class EnforceAdminIsActive
             $request->session()->regenerateToken();
 
             return redirect()->route('admin.login')->withErrors([
-                'email' => 'This admin account has been switched off. Contact HQ to have it switched back on.',
+                'username' => 'This admin account has been switched off. Contact HQ to have it switched back on.',
             ]);
         }
 

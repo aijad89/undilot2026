@@ -18,7 +18,7 @@ use App\Models\KrafSubBidang;
  * participants with a company each, and two events — one with its draw list
  * filled from those companies; then DemoEventsSeeder's open, coming and past
  * events; then DemoScenarioSeeder's "Uji: …" events, one per state the manual
- * test sheet needs. Re-runnable: everything is matched by name or email first.
+ * test sheet needs. Re-runnable: everything is matched by name, username or community ID first.
  */
 class DemoSeeder extends LocalOnlySeeder
 {

@@ -26,11 +26,12 @@ class AdminFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            'username' => fake()->unique()->userName(),
             'password' => static::$password ??= bcrypt('password'),
             'role' => 'admin',
             'state' => 'Johor',
             'is_active' => true,
+            'legacy_id' => null,
             'last_seen_at' => null,
             'remember_token' => Str::random(10),
         ];
