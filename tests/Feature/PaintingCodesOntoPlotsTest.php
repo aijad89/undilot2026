@@ -34,8 +34,8 @@ it('paints codes, renumbers the plots by them, and rebuilds the allocations', fu
         ]])
         ->assertRedirect(route('admin.polling.paint', $event));
 
-    expect(Plot::where('bidang_id', $rkp->id)->pluck('plot_code')->sort()->values()->all())->toBe(['HALL A-RKP1', 'HALL A-RKP2'])
-        ->and($plots[2]->fresh()->plot_code)->toBe('HALL A-3X31')
+    expect(Plot::where('bidang_id', $rkp->id)->pluck('plot_code')->sort()->values()->all())->toBe(['RKP01', 'RKP02'])
+        ->and($plots[2]->fresh()->plot_code)->toBe('3X3-01')
         ->and(BidangAllocation::sole()->only(['bidang_id', 'plot_size_id', 'plots_count']))
             ->toBe(['bidang_id' => $rkp->id, 'plot_size_id' => $size->id, 'plots_count' => 2]);
 });
@@ -94,4 +94,22 @@ it('offers the codes the draw holds, with how many hold each, and is super/hq on
     $this->actingAs(stateAdmin('Johor'), 'admin')
         ->get(route('admin.polling.paint', $event))
         ->assertForbidden();
+});
+
+it('numbers a code painted in two halls on from one to the next, as the typed plan does', function () {
+    $event = Event::factory()->create();
+    $hallA = PlotSize::factory()->create(['event_id' => $event->id, 'location' => 'Hall A', 'size' => '3x3', 'quantity' => 2]);
+    $hallB = PlotSize::factory()->create(['event_id' => $event->id, 'location' => 'Hall B', 'size' => '3x3', 'quantity' => 2]);
+    $a = collect([1, 2])->map(fn ($n) => Plot::factory()->on($hallA)->create(['plot_code' => "3X3-0{$n}"]));
+    $b = collect([3, 4])->map(fn ($n) => Plot::factory()->on($hallB)->create(['plot_code' => "3X3-0{$n}"]));
+    $rkp = KrafBidang::factory()->code('RKP')->create();
+
+    $this->actingAs(superAdmin(), 'admin')
+        ->put(route('admin.polling.paint.update', $event), ['paint' => [
+            $a[0]->id => $rkp->id, $a[1]->id => $rkp->id,
+            $b[0]->id => $rkp->id, $b[1]->id => $rkp->id,
+        ]]);
+
+    expect([$a[0]->fresh()->plot_code, $a[1]->fresh()->plot_code, $b[0]->fresh()->plot_code, $b[1]->fresh()->plot_code])
+        ->toBe(['RKP01', 'RKP02', 'RKP03', 'RKP04']);
 });

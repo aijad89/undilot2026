@@ -158,7 +158,7 @@ class BatikDrawSeeder extends LocalOnlySeeder
                 'user_id' => $user->id,
                 'name' => $this->companyName($i),
                 'state' => $zone,
-                'entrepreneur_category' => $n % 10 === 0 ? 'One District One Industry - Craft Products' : 'Micro, Small & Medium (MSM)',
+                'entrepreneur_category' => $n % 10 === 0 ? 'Pemborong' : 'Pengeluar atau Pedagang',
                 'is_active' => true,
             ]);
             $company->kraf_code = $code;     // admin-only, not fillable
@@ -272,6 +272,7 @@ class BatikDrawSeeder extends LocalOnlySeeder
                 'first_verified_at' => now(),
                 'hq_note' => null,
                 'payment_note' => sprintf('Resit PB-%04d, %s, tunai', $n + 1, now()->subDays(3)->format('j M')),
+                'payment_status' => 'paid',
             ]);
         }
     }

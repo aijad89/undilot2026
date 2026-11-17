@@ -90,6 +90,17 @@ class CompanyController extends Controller
         }
     }
 
+    /**
+     * `users.email` is NOT NULL and unique, but participants sign in with
+     * community ID + IC and are not given an email (2026-11-17). A blank email
+     * gets the same never-deliverable address `import:participants` writes, so
+     * `legacy:emails` can find and replace it once a real one arrives.
+     */
+    private static function placeholderEmail(string $ic): string
+    {
+        return 'peserta'.preg_replace('/\D/', '', $ic).'@'.\App\Console\Commands\LegacyAccounts::MAIL_DOMAIN;
+    }
+
     public function store(Request $request)
     {
         $admin = $request->user('admin');
@@ -103,10 +114,10 @@ class CompanyController extends Controller
             'is_active' => ['nullable', 'boolean'],
 
             'owner_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'ic_number' => ['nullable', 'string', 'regex:/^\d{6}-\d{2}-\d{4}$/', 'unique:users,ic_number'],
-            'community_id' => ['nullable', 'string', 'max:50'],
+            'ic_number' => ['required', 'string', 'regex:/^\d{6}-\d{2}-\d{4}$/', 'unique:users,ic_number'],
+            'community_id' => ['required', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:500'],
             // Optional. Blank means the office is not handing a password over in
             // person and the owner will set one through the reset flow.
@@ -119,7 +130,7 @@ class CompanyController extends Controller
         $company = DB::transaction(function () use ($request, $data) {
             $user = User::create([
                 'name' => $data['owner_name'],
-                'email' => $data['email'],
+                'email' => $data['email'] ?? self::placeholderEmail($data['ic_number']),
                 'phone' => $data['phone'] ?? null,
                 'ic_number' => $data['ic_number'] ?? null,
                 'community_id' => $data['community_id'] ?? null,
@@ -173,13 +184,13 @@ class CompanyController extends Controller
             'entrepreneur_category' => ['nullable', EntrepreneurCategories::rule()],
 
             'owner_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:30'],
             'ic_number' => [
-                'nullable', 'string', 'regex:/^\d{6}-\d{2}-\d{4}$/',
+                'required', 'string', 'regex:/^\d{6}-\d{2}-\d{4}$/',
                 Rule::unique('users', 'ic_number')->ignore($user->id),
             ],
-            'community_id' => ['nullable', 'string', 'max:50'],
+            'community_id' => ['required', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'max:500'],
             // Left blank on every ordinary save. Filled only when the office is
             // resetting the password for someone who cannot do it themselves.
@@ -189,7 +200,7 @@ class CompanyController extends Controller
         DB::transaction(function () use ($request, $data, $company, $user) {
             $user->update([
                 'name' => $data['owner_name'],
-                'email' => $data['email'],
+                'email' => $data['email'] ?? $user->email,
                 'phone' => $data['phone'] ?? null,
                 'ic_number' => $data['ic_number'] ?? null,
                 'community_id' => $data['community_id'] ?? null,

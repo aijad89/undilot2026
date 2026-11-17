@@ -135,7 +135,7 @@ class DemoScenarioSeeder extends LocalOnlySeeder
             'password' => \Illuminate\Support\Str::random(40),
             'phone' => '01'.random_int(10000000, 99999999),
             'ic_number' => $ic,
-            'community_id' => null,
+            'community_id' => 'KOM-'.strtoupper(substr(md5($email), 0, 6)),
             'is_active' => true,
         ]);
 
@@ -476,6 +476,7 @@ class DemoScenarioSeeder extends LocalOnlySeeder
             'first_verified_at' => $verified ? now() : null,
             'hq_note' => $hqNote,
             'payment_note' => $verified ? null : 'Resit 0042, tunai, '.now()->subDays(2)->format('d/m/Y'),
+            'payment_status' => $verified ? null : 'paid',
         ]);
     }
 
@@ -498,7 +499,7 @@ class DemoScenarioSeeder extends LocalOnlySeeder
             $bidang = KrafBidang::codes()->where('code', $code)->firstOrFail();
             BidangAllocation::create(['event_id' => $event->id, 'bidang_id' => $bidang->id, 'plot_size_id' => $rows[$size]->id, 'plots_count' => $count]);
             for ($n = 1; $n <= $count; $n++) {
-                $this->plot($event, $rows[$size], $bidang->id, Plot::codeFor($location, $code, $n));
+                $this->plot($event, $rows[$size], $bidang->id, Plot::codeFor($code, $n));
             }
             $claimed[$size] = ($claimed[$size] ?? 0) + $count;
         }
@@ -506,7 +507,7 @@ class DemoScenarioSeeder extends LocalOnlySeeder
         // What no code claims is the open pool at that size.
         foreach ($rows as $size => $row) {
             for ($n = 1; $n <= $row->quantity - ($claimed[$size] ?? 0); $n++) {
-                $this->plot($event, $row, null, Plot::codeFor($location, $size, $n));
+                $this->plot($event, $row, null, Plot::codeFor($size, $n));
             }
         }
     }

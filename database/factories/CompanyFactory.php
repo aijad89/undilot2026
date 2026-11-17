@@ -30,19 +30,11 @@ class CompanyFactory extends Factory
             'user_id' => User::factory(),
             'name' => fake()->company(),
             'state' => 'Johor',
-            'entrepreneur_category' => 'Micro, Small & Medium (MSM)',
+            'entrepreneur_category' => 'Pengeluar atau Pedagang',
             'kraf_code' => null,
             'plot_size' => null,
             'is_active' => true,
         ];
-    }
-
-    /** A body that is not a craft entrepreneur — the draw must not place it. */
-    public function externalEntity(): static
-    {
-        return $this->state(fn () => [
-            'entrepreneur_category' => 'Government Agency (*Registration under external agency name)',
-        ]);
     }
 
     public function inactive(): static

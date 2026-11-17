@@ -51,19 +51,23 @@ class PollingController extends Controller
     /** The plan's own rules. Create and edit post the same form. */
     private const PLAN_RULES = [
         'plot_sizes' => 'required|array|min:1',
-        // A row is a LOCATION holding one or more size lines — "B: 20 × 3x3,
-        // 10 × 3x6". Every plot has a size, because a lot is drawn only at a
-        // registration's own booth size: an unsized plot is one nobody can win.
-        'plot_sizes.*.sizes' => 'required|array|min:1',
-        'plot_sizes.*.sizes.*.size' => 'required|string|max:50',
-        'plot_sizes.*.sizes.*.quantity' => 'required|integer|min:1',
-        // The plot code prefix — "HALL A-TBP1". Required, so no plot falls back
-        // to a meaningless "LOC-TBP1".
+        // A row is a LOCATION. Its plots are its craft code allocations plus
+        // any SPARE lines — plots with no code, the open pool a company draws
+        // from when its own code has run out. The location's size totals are
+        // counted from those two, never typed (owner's decision 2026-11-17:
+        // the typed totals repeated what the allocations already said).
+        'plot_sizes.*.spares' => 'nullable|array',
+        'plot_sizes.*.spares.*.size' => 'required|string|max:50',
+        'plot_sizes.*.spares.*.quantity' => 'required|integer|min:1',
+        // Names the place on the plan and the slip. Required: a plot with no
+        // location cannot be found on the day.
         'plot_sizes.*.location' => 'required|string|max:50',
         'bidang_allocations' => 'nullable|array',
         'bidang_allocations.*.bidang_id' => 'required_with:bidang_allocations|integer',
         'bidang_allocations.*.plot_size_index' => 'required_with:bidang_allocations|integer|min:0',
-        'bidang_allocations.*.size' => 'nullable|string|max:50',
+        // Every plot has a size, because a lot is drawn only at a registration's
+        // own booth size: an unsized plot is one nobody can win.
+        'bidang_allocations.*.size' => 'required_with:bidang_allocations|string|max:50',
         'bidang_allocations.*.plots_count' => 'required_with:bidang_allocations|integer|min:1',
     ];
 
@@ -729,10 +733,11 @@ class PollingController extends Controller
      * Write a submitted plan onto the event, ready for doGeneratePlots().
      *
      * A plot_sizes row is a (location, size) pair — what a plot carries and what
-     * a registration's booth size is matched against. The form types exactly
-     * that: a LOCATION card with one line per size it holds, and allocations
-     * under it, each at one of those sizes. Pairs are matched on (location,
-     * size) so a surviving pair keeps its id.
+     * a registration's booth size is matched against. The form does not type
+     * those rows: a LOCATION card holds craft code allocations (code, size,
+     * plots) and optional spare lines (size, plots), and each pair's quantity is
+     * their sum. Pairs are matched on (location, size) so a surviving pair keeps
+     * its id.
      */
     private function savePlan(Event $event, array $validated): void
     {
@@ -741,7 +746,7 @@ class PollingController extends Controller
 
         // One card per place: a second card with the same name would have its
         // allocations land on the first card's rows when the form is reopened.
-        // A place with two sizes is one card with two size lines.
+        // A place with two sizes is one card with allocations at both.
         $names = array_map(fn ($l) => trim((string) $l['location']), $locations);
         $twice = array_diff_assoc($names, array_unique($names));
 
@@ -749,25 +754,15 @@ class PollingController extends Controller
             $name = reset($twice);
 
             throw ValidationException::withMessages([
-                'plot_sizes' => "Location '{$name}' is on two cards. Keep one card for '{$name}' and add each booth size to it as a line.",
+                'plot_sizes' => "Location '{$name}' is on two cards. Keep one card for '{$name}' and put all its craft codes on it.",
             ]);
         }
 
-        // location index => [size => plots it holds]. A size typed twice on one
-        // card is the same pair, so its lines add up.
+        // location index => [size => plots it holds], COUNTED: every craft code
+        // allocation at that size plus every spare line. Nothing is typed as a
+        // total, so an allocation can never overflow its location — there is no
+        // second number for it to disagree with.
         $lines = [];
-
-        foreach ($locations as $index => $location) {
-            foreach ($location['sizes'] as $line) {
-                $size = trim((string) $line['size']);
-                $lines[$index][$size] = ($lines[$index][$size] ?? 0) + (int) $line['quantity'];
-            }
-        }
-
-        // location index => [size => plots allocated], summed across the whole
-        // submission: a row-at-a-time check misses two rows that only overflow
-        // together.
-        $wanted = [];
 
         foreach ($allocations as $alloc) {
             $index = $alloc['plot_size_index'];
@@ -779,25 +774,22 @@ class PollingController extends Controller
                 ]);
             }
 
-            $size = $this->sizeOf($alloc, $lines[$index]);
-            $name = $locations[$index]['location'];
-
-            if (! isset($lines[$index][$size])) {
-                throw ValidationException::withMessages([
-                    'bidang_allocations' => "Location '{$name}' has no {$size} plots. Add a {$size} line to it, or give the allocation one of its sizes.",
-                ]);
-            }
-
-            $wanted[$index][$size] = ($wanted[$index][$size] ?? 0) + $alloc['plots_count'];
+            $size = trim((string) $alloc['size']);
+            $lines[$index][$size] = ($lines[$index][$size] ?? 0) + (int) $alloc['plots_count'];
         }
 
-        foreach ($wanted as $index => $sizes) {
-            foreach ($sizes as $size => $total) {
-                if ($total > $lines[$index][$size]) {
-                    throw ValidationException::withMessages([
-                        'bidang_allocations' => "Location '{$locations[$index]['location']}' holds {$lines[$index][$size]} plots of {$size}, but {$total} are allocated.",
-                    ]);
-                }
+        foreach ($locations as $index => $location) {
+            foreach ($location['spares'] ?? [] as $spare) {
+                $size = trim((string) $spare['size']);
+                $lines[$index][$size] = ($lines[$index][$size] ?? 0) + (int) $spare['quantity'];
+            }
+
+            // A card with neither builds no plots — almost certainly a hall
+            // whose codes were forgotten, so it is said rather than dropped.
+            if (empty($lines[$index])) {
+                throw ValidationException::withMessages([
+                    'plot_sizes' => "Location '{$location['location']}' has no plots. Add a craft code to it, or spare plots, or remove the location.",
+                ]);
             }
         }
 
@@ -807,8 +799,8 @@ class PollingController extends Controller
         $existing = $event->plotSizes()->get()->keyBy(fn ($r) => $r->location.'|'.$r->size);
 
         foreach ($locations as $index => $location) {
-            // Each line becomes a row. Its plots no allocation claims are built
-            // uncoded — the open pool at that size — by doGeneratePlots().
+            // Each (location, size) becomes a row. Its spare plots — the ones no
+            // allocation claims — are built uncoded, the open pool, by doGeneratePlots().
             foreach ($lines[$index] as $size => $quantity) {
                 $pairKey = $location['location'].'|'.$size;
 
@@ -844,7 +836,7 @@ class PollingController extends Controller
             BidangAllocation::create([
                 'event_id' => $event->id,
                 'bidang_id' => $alloc['bidang_id'],
-                'plot_size_id' => $rowFor[$index.'|'.$this->sizeOf($alloc, $lines[$index])],
+                'plot_size_id' => $rowFor[$index.'|'.trim((string) $alloc['size'])],
                 'plots_count' => $alloc['plots_count'],
             ]);
         }
@@ -869,19 +861,6 @@ class PollingController extends Controller
     }
 
     /**
-     * The booth size an allocation is for: its own, else its location's only
-     * size when the location has just one.
-     *
-     * @param  array<string, int>  $sizes  the location's lines, size => plots
-     */
-    private function sizeOf(array $allocation, array $sizes): string
-    {
-        $own = trim((string) ($allocation['size'] ?? ''));
-
-        return $own !== '' || count($sizes) !== 1 ? $own : (string) array_key_first($sizes);
-    }
-
-    /**
      * Build the event's plots from its plan, in chunked inserts: a hall is
      * bounded only by what an admin typed, and two statements per plot (the row
      * and its audit row) held the transaction open long enough to time out.
@@ -901,7 +880,6 @@ class PollingController extends Controller
         $allocations = $event->bidangAllocations()->with('bidang')->get();
 
         foreach ($event->plotSizes()->get() as $plotSize) {
-            $location = $plotSize->location ?: 'LOC';
             $forSize = $allocations->where('plot_size_id', $plotSize->id);
 
             // A size can be allocated in part; what is left is built uncoded.
@@ -909,17 +887,18 @@ class PollingController extends Controller
 
             $unallocated = $plotSize->quantity - $forSize->sum('plots_count');
             if ($unallocated > 0) {
-                // An uncoded plot reads "HALL A-3X34": its size, not a category.
+                // An uncoded plot reads "3X3-04": its size, not a category.
                 $batches[] = [null, $plotSize->size, $unallocated];
             }
 
             foreach ($batches as [$bidangId, $token, $count]) {
-                // Keyed on the label as PRINTED, not the raw location: codeFor()
-                // upper-cases and drops punctuation, so "Dewan A" and "DEWAN A."
-                // are two plan rows and one label. Keyed raw, each counted from
-                // 1 and two stalls carried DEWAN A-RKP1. The trailing number is
-                // cut so the audit row reads "DEWAN A-RKP" => 12.
-                $key = substr(Plot::codeFor($location, $token, 0), 0, -1);
+                // Keyed on the code as PRINTED, across every location: the
+                // number carries no location, so TBPS in two halls counts on
+                // from one hall to the next, or both would hold a TBPS01.
+                // codeFor() upper-cases and drops punctuation, so "rkp" and
+                // "RKP." are one key. The number is cut so the audit row reads
+                // "RKP" => 12.
+                $key = rtrim(substr(Plot::codeFor($token, 0), 0, -2), '-');
                 $counters[$key] ??= 1;
 
                 for ($i = 0; $i < $count; $i++) {
@@ -930,7 +909,7 @@ class PollingController extends Controller
                         'allocated_to' => null,
                         'bidang_id' => $bidangId,
                         'sub_bidang_id' => null,
-                        'plot_code' => Plot::codeFor($location, $token, $counters[$key]++),
+                        'plot_code' => Plot::codeFor($token, $counters[$key]++),
                         'is_allocated' => false,
                         'allocation_type' => 'algorithm',
                         'is_locked' => false,
@@ -949,7 +928,7 @@ class PollingController extends Controller
 
         AuditTrail::record('plots_generated', $event, null, [
             'plots' => count($rows),
-            // "DEWAN A-RKP" => 12 — the counter holds the NEXT number.
+            // "RKP" => 12 — the counter holds the NEXT number.
             'per_code' => collect($counters)->map(fn ($next) => $next - 1)->all(),
         ]);
     }

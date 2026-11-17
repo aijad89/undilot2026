@@ -4,6 +4,7 @@ use App\Models\AuditTrail;
 use App\Models\BidangAllocation;
 use App\Models\Event;
 use App\Models\KrafBidang;
+use App\Models\Plot;
 use App\Models\PlotSize;
 
 /*
@@ -63,13 +64,13 @@ it('builds coded plots for each allocation and the open pool from the rest', fun
     $plots = $event->plots()->with('bidang', 'plotSize')->orderBy('id')->get();
 
     expect($plots->map(fn ($p) => [$p->plot_code, $p->bidang?->code, $p->plotSize->size])->all())->toBe([
-        ['DEWAN A-TBPS1', 'TBPS', '3x3'],
-        ['DEWAN A-TBPS2', 'TBPS', '3x3'],
-        ['DEWAN A-RKP1', 'RKP', '3x3'],
-        ['DEWAN A-3X31', null, '3x3'],
-        ['DEWAN A-3X32', null, '3x3'],
-        ['DEWAN A-3X61', null, '3x6'],
-        ['DEWAN A-3X62', null, '3x6'],
+        ['TBPS01', 'TBPS', '3x3'],
+        ['TBPS02', 'TBPS', '3x3'],
+        ['RKP01', 'RKP', '3x3'],
+        ['3X3-01', null, '3x3'],
+        ['3X3-02', null, '3x3'],
+        ['3X6-01', null, '3x6'],
+        ['3X6-02', null, '3x6'],
     ]);
 
     expect($plots->every(fn ($p) => ! $p->is_allocated && $p->company_id === null))->toBeTrue();
@@ -85,7 +86,7 @@ it('numbers one code across sizes at the same location, so no two stalls share a
     generate($event);
 
     expect($event->plots()->orderBy('id')->pluck('plot_code')->all())
-        ->toBe(['DEWAN A-RKP1', 'DEWAN A-RKP2', 'DEWAN A-RKP3', 'DEWAN A-RKP4']);
+        ->toBe(['RKP01', 'RKP02', 'RKP03', 'RKP04']);
 });
 
 it('gives every plot a distinct label even when two locations print the same', function () {
@@ -116,7 +117,7 @@ it('writes one audit row for the whole batch, since the inserts fire no model ev
     expect($row->auditable_id)->toBe($event->id)
         ->and($row->new_values['plots'])->toBe(3)
         // toEqual: MySQL's JSON type reorders keys.
-        ->and($row->new_values['per_code'])->toEqual(['DEWAN A-TBPS' => 2, 'DEWAN A-3X3' => 1]);
+        ->and($row->new_values['per_code'])->toEqual(['TBPS' => 2, '3X3' => 1]);
 });
 
 it('refuses when the event already has plots, and builds nothing twice', function () {
@@ -145,4 +146,27 @@ it('is HQ\'s and super\'s to press, not a state admin\'s', function () {
     generate($event)->assertForbidden();
 
     expect($event->plots()->count())->toBe(0);
+});
+
+it('counts one code on from one location to the next, so TBPS02 is one plot', function () {
+    // The office's format carries no location (TBPS02), so two halls holding
+    // TBPS cannot both start from 01.
+    $event = plannedEvent([
+        ['Dewan A', '3x3', 2, ['TBPS' => 2]],
+        ['Dewan B', '3x3', 2, ['TBPS' => 2]],
+    ]);
+
+    $this->actingAs(superAdmin(), 'admin');
+    generate($event);
+
+    expect($event->plots()->orderBy('id')->pluck('plot_code')->all())
+        ->toBe(['TBPS01', 'TBPS02', 'TBPS03', 'TBPS04']);
+});
+
+it('pads the number to two digits, and hyphens a size so its digits stay apart', function () {
+    expect(Plot::codeFor('TBPS', 2))->toBe('TBPS02')
+        ->and(Plot::codeFor('tbps', 10))->toBe('TBPS10')
+        ->and(Plot::codeFor('TBPS', 100))->toBe('TBPS100')
+        ->and(Plot::codeFor('3x3', 4))->toBe('3X3-04')
+        ->and(Plot::codeFor(null, 1))->toBe('PLOT01');
 });

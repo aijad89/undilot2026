@@ -188,6 +188,8 @@ it('creates the company and its one account from a single form', function () {
             'owner_name' => 'Aminah',
             'email' => 'aminah@example.test',
             'phone' => '012-3456789',
+            'ic_number' => '900101-01-2222',
+            'community_id' => 'KOM-0003',
             'password' => 'kraf1234',
             'password_confirmation' => 'kraf1234',
         ])
@@ -209,7 +211,7 @@ it('stores an IC typed as twelve bare digits in its dashed form, so one IC is on
     $post = fn (string $ic, string $email) => $this->actingAs(stateAdmin('Johor'), 'admin')
         ->post(route('admin.companies.store'), [
             'name' => 'Kraf '.$email, 'state' => 'Johor', 'owner_name' => 'Owner',
-            'email' => $email, 'ic_number' => $ic,
+            'email' => $email, 'ic_number' => $ic, 'community_id' => 'KOM-'.$email,
         ]);
 
     // The same IC as the existing account, typed without dashes: refused as a

@@ -222,7 +222,7 @@ app/
 ├── Http/
 │   ├── Controllers/
 │   │   ├── Admin/         Semua skrin admin (acara, senarai cabutan, cabutan, tetapan…)
-│   │   ├── Auth/          Log masuk peserta, admin, reset kata laluan
+│   │   ├── Auth/          Log masuk peserta (ID Komuniti + IC), admin (emel + kata laluan)
 │   │   ├── HomeController         Laman awam + papan pemuka peserta
 │   │   ├── LotDrawController      Halaman lot peserta, Confirm, slip PDF
 │   │   ├── NotificationController Peti notifikasi peserta
@@ -419,8 +419,8 @@ baharu ditambah pada `REFERENCE_SEEDERS` dalam
 php artisan import:participants path/to/peserta.csv
 ```
 
-- Lajur wajib: `nama`, `ic`. Pilihan: `telefon`, `emel`, `syarikat`, `zon`,
-  `kod_kraf`, `saiz_gerai`, `kategori_usahawan`, `no_komuniti`.
+- Lajur wajib: `nama`, `ic`. **`no_komuniti` diperlukan untuk log masuk.** Pilihan: `telefon`, `emel`, `syarikat`, `zon`,
+  `kod_kraf`, `saiz_gerai`, `kategori_usahawan` (`Pengeluar atau Pedagang` / `Pemborong`), `no_komuniti`, `alamat`.
 - Satu baris = satu orang dan syarikatnya. Dipadan pada IC (dinormalkan kepada
   digit).
 - Seluruh fail disemak dahulu; jika ada ralat (IC berganda, zon tidak wujud),
@@ -489,7 +489,7 @@ Repo tidak mengandungi skrip atau dokumen deploy. Maklumat pelayan
    - `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=<URL penuh, termasuk subpath>`
    - `DB_*` MySQL
    - `SESSION_DRIVER=database`, `QUEUE_CONNECTION=database`
-   - `MAIL_*` pelayan mel sebenar (reset kata laluan bergantung padanya)
+   - `MAIL_*` pelayan mel sebenar (notifikasi; peserta log masuk dengan ID Komuniti + IC, bukan emel)
    - `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` untuk super admin pertama
 4. `php artisan key:generate`
 5. `php artisan migrate --force` kemudian `php artisan db:seed --force` —

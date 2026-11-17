@@ -378,11 +378,14 @@ class EntRegistrationController extends Controller
         EventVisibility::authorize($event);
         $this->authorizeScope($request, $registration);
 
-        $data = $request->validate(['payment_note' => ['nullable', 'string', 'max:500']]);
+        $data = $request->validate([
+            'payment_status' => ['nullable', Rule::in(array_keys(EventRegistration::PAYMENT_STATUSES))],
+            'payment_note' => ['nullable', 'string', 'max:500'],
+        ]);
 
         $registration->update($data + ['hq_note' => null]);
 
-        return back()->with('success', 'Payment note saved.');
+        return back()->with('success', 'Payment saved.');
     }
 
     /**
@@ -624,6 +627,7 @@ class EntRegistrationController extends Controller
                 'first_verified_at' => $r->first_verified_at,
                 'hq_note' => $r->hq_note,
                 'payment_note' => $r->payment_note,
+                'payment_status' => $r->payment_status,
             ])
             ->values()
             ->all()]);

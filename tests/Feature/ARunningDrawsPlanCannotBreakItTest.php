@@ -48,7 +48,7 @@ function runningPlan(Event $event, KrafBidang $code, int $lots): array
         'event_id' => $event->id,
         'polling_start_date' => now()->subHour()->format('Y-m-d\TH:i'),
         'polling_deadline' => now()->addDays(3)->format('Y-m-d\TH:i'),
-        'plot_sizes' => [['location' => 'Hall A', 'sizes' => [['size' => '3x3', 'quantity' => $lots]]]],
+        'plot_sizes' => [['location' => 'Hall A']],   // every plot coded, no spares
         'bidang_allocations' => [['bidang_id' => $code->id, 'plot_size_index' => 0, 'size' => '3x3', 'plots_count' => $lots]],
     ];
 }

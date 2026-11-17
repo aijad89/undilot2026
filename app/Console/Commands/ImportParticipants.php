@@ -55,7 +55,7 @@ class ImportParticipants extends Command
     /** Every column the importer reads. Anything else in the sheet is ignored and reported. */
     private const KNOWN = [
         'nama', 'ic', 'telefon', 'emel', 'syarikat', 'zon',
-        'kod_kraf', 'saiz_gerai', 'kategori_usahawan', 'no_komuniti',
+        'kod_kraf', 'saiz_gerai', 'kategori_usahawan', 'no_komuniti', 'alamat',
     ];
 
     private array $planned = [];
@@ -113,9 +113,18 @@ class ImportParticipants extends Command
 
         if ($this->generatedEmails > 0) {
             $this->newLine();
-            $this->warn($this->generatedEmails.' participant(s) had no email, so one was generated on '
-                .LegacyAccounts::MAIL_DOMAIN.'. They cannot sign in and cannot reset a password until');
-            $this->warn('the office supplies real addresses — then `legacy:emails` moves them across, matched on IC.');
+            $this->line($this->generatedEmails.' participant(s) had no email, so a placeholder was written on '
+                .LegacyAccounts::MAIL_DOMAIN.'. They sign in with community ID + IC, so this does not stop them;');
+            $this->line('`legacy:emails` replaces the placeholder if a real address arrives later.');
+        }
+
+        // Participants sign in with community ID + IC (LoginRequest). Without
+        // the ID the row is written, but that person cannot sign in.
+        $noId = count(array_filter($this->planned, fn ($p) => $p['community'] === ''));
+
+        if ($noId > 0) {
+            $this->newLine();
+            $this->warn("{$noId} participant(s) have no community ID (no_komuniti) and CANNOT SIGN IN until one is added.");
         }
 
         return $this->failed === [] ? self::SUCCESS : self::FAILURE;
@@ -284,6 +293,7 @@ class ImportParticipants extends Command
                 'size' => $size,
                 'category' => $category,
                 'community' => $row['no_komuniti'] ?? '',
+                'address' => $row['alamat'] ?? '',
             ];
         }
     }
@@ -323,6 +333,7 @@ class ImportParticipants extends Command
                     $user->ic_number = $plan['ic_raw'];
                     $user->phone = $plan['phone'] !== '' ? $plan['phone'] : null;
                     $user->community_id = $plan['community'] !== '' ? $plan['community'] : null;
+                    $user->address = $plan['address'] !== '' ? $plan['address'] : null;
                     $user->is_active = true;
                     $user->save();
 
@@ -394,7 +405,7 @@ class ImportParticipants extends Command
 
         foreach (['email' => 'emel', 'phone' => 'telefon', 'company' => 'syarikat', 'zone' => 'zon',
             'code' => 'kod_kraf', 'size' => 'saiz_gerai', 'category' => 'kategori_usahawan',
-            'community' => 'no_komuniti'] as $key => $label) {
+            'community' => 'no_komuniti', 'address' => 'alamat'] as $key => $label) {
             $n = $blank($key);
 
             if ($n > 0) {

@@ -27,16 +27,21 @@ yang belum siap, dan 5 pepijat sederhana yang masih terbuka.
 - [ ] `php artisan import:participants <fail.csv>` — semak laporan, tiada baris gagal
 
 Lajur CSV: wajib `nama`, `ic`; pilihan `telefon`, `emel`, `syarikat`, `zon`,
-`kod_kraf`, `saiz_gerai`, `kategori_usahawan`, `no_komuniti`. Seluruh fail
+`kod_kraf`, `saiz_gerai`, `kategori_usahawan` (`Pengeluar atau Pedagang` / `Pemborong`),
+`no_komuniti`, `alamat`. Seluruh fail
 disemak dahulu — jika satu baris salah, tiada apa disimpan.
 
-### B2. Peserta perlukan emel sebenar dan pelayan mel yang berfungsi
-Tiada kata laluan dihantar kepada peserta. Pejabat mencipta akaun; peserta
-menetapkan kata laluan sendiri melalui **Lupa kata laluan**, yang menghantar
-pautan melalui emel.
+### B2. Peserta perlukan ID Komuniti + IC; pelayan mel untuk notifikasi sahaja
+**Dikemas kini 2026-11-17:** peserta kini log masuk dengan **ID Komuniti + IC**,
+tanpa kata laluan dan tanpa emel (keputusan pemilik). Emel tidak lagi
+diperlukan untuk log masuk.
 
-- [ ] Setiap peserta ada alamat emel sebenar. Peserta tanpa emel diberi alamat
-      rekaan dan **tidak boleh log masuk langsung**.
+- [ ] Setiap peserta dalam CSV ada `no_komuniti` **dan** `ic` — tanpa ID
+      Komuniti, peserta **tidak boleh log masuk** (import memberi amaran).
+- [ ] Pasukan menyemak semula keselamatan log masuk ID + IC (IC dicetak pada
+      slip, bukan rahsia) — ditangguhkan atas arahan pemilik.
+
+Baki di bawah hanya untuk notifikasi emel (dan admin), bukan log masuk peserta:
 - [ ] `MAIL_*` dalam `.env` pelayan dihalakan ke pelayan mel sebenar
       (sekarang `MAIL_MAILER=log`)
 - [ ] Uji hantar emel reset kata laluan dari pelayan produksi ke alamat luar
@@ -243,3 +248,6 @@ yang sudah dibuang (laporan, pengumuman, permohonan sertai) — sahkan dan tutup
 | 2026-11-16 | K04–K08 dibaiki, 22 ujian baharu, setiap satu dibuktikan menggigit. Suite: 479 lulus, 21 gagal (fixture lama sahaja) | PR #1 | — |
 | 2026-11-16 | K09 dibaiki; label kod kraf pada slip dibetulkan; `.env.example` dibersihkan | PR #2 | — |
 | 2026-11-16 | K10 dibaiki; IC pada slip di belakang suis `SLIP_SHOWS_IC` (lalai **on** — IC dicetak, keputusan pemilik) | belum push | — |
+| 2026-11-17 | Medan data pejabat: `alamat` dalam import CSV; kategori usahawan = Pengeluar atau Pedagang / Pemborong; status bayaran (Paid / Not paid) di senarai cabutan; nombor lot `TBPS02`. Suite: 504 lulus, 21 gagal (fixture lama sahaja) | belum push | — |
+| 2026-11-17 | Log masuk peserta ditukar ke ID Komuniti + IC (tanpa kata laluan/emel); borang syarikat mewajibkan ID + IC, emel pilihan. Suite: 516 lulus, 21 gagal (fixture lama sahaja) | belum push | — |
+| 2026-11-17 | Borang pelan lot: bahagian "Booth sizes here" dibuang; jumlah lokasi dikira daripada peruntukan kod + baris plot simpanan pilihan. Suite: 516 lulus, 21 gagal (fixture lama sahaja) | belum push | — |

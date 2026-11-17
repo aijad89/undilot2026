@@ -149,7 +149,7 @@ class DemoEventsSeeder extends LocalOnlySeeder
     {
         $taking = $companies->shuffle()->take(max(1, (int) round($companies->count() * 0.8)));
         $sizes = [];
-        $n = 0;
+        $perCode = [];
 
         foreach ($taking as $company) {
             $size = $company->plot_size ?? '3x3';
@@ -163,14 +163,14 @@ class DemoEventsSeeder extends LocalOnlySeeder
 
             // One in five never got a lot (withdrew before the fair).
             if ($faker->boolean(80)) {
-                $n++;
+                $perCode[$company->kraf_code] = ($perCode[$company->kraf_code] ?? 0) + 1;
                 $plot = Plot::create([
                     'event_id' => $event->id,
                     'plot_size_id' => $sizes[$size]->id,
                     'company_id' => $company->id,
                     'allocated_to' => $company->user_id,
                     'bidang_id' => KrafBidang::codes()->where('code', $company->kraf_code)->value('id'),
-                    'plot_code' => chr(65 + intdiv($n - 1, 9)).'-'.$company->kraf_code.(($n - 1) % 9 + 1),
+                    'plot_code' => Plot::codeFor($company->kraf_code, $perCode[$company->kraf_code]),
                     'is_allocated' => true,
                     'allocation_type' => 'algorithm',
                     'allocated_at' => $registration->confirmed_at,

@@ -268,3 +268,31 @@ it('stops when the sheet has no IC column at all', function () {
     expect($exit)->toBe(1)
         ->and(User::count())->toBe(0);
 });
+
+it('reads the address, commas and all, onto the participant', function () {
+    $exit = Artisan::call('import:participants', [
+        'path' => csvFile([
+            CSV_HEAD.',alamat',
+            'SITI BINTI ALI,890508-12-0000,,,,Johor,,,,,"No 12, Jalan Kraf, 81100 Johor Bahru"',
+        ]),
+        '--force' => true,
+    ]);
+
+    expect($exit)->toBe(0)
+        ->and(User::where('ic_number', '890508-12-0000')->value('address'))->toBe('No 12, Jalan Kraf, 81100 Johor Bahru');
+});
+
+it('takes only the office\'s two entrepreneur categories', function () {
+    $exit = Artisan::call('import:participants', [
+        'path' => csvFile([
+            CSV_HEAD,
+            'SITI BINTI ALI,890508-12-0000,,,,Johor,,,Pemborong,',
+            'ALI BIN ABU,800601-10-0000,,,,Johor,,,"Micro, Small & Medium (MSM)",',
+        ]),
+        '--force' => true,
+    ]);
+
+    expect($exit)->toBe(1)
+        ->and(Company::whereHas('user', fn ($q) => $q->where('ic_number', '890508-12-0000'))->value('entrepreneur_category'))->toBe('Pemborong')
+        ->and(User::where('ic_number', '800601-10-0000')->exists())->toBeFalse();
+});

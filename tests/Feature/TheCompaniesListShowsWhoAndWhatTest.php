@@ -40,7 +40,7 @@ it('saves a community ID from the company form', function () {
     $this->actingAs(superAdmin(), 'admin')->put(route('admin.companies.update', $company), [
         'name' => 'Tenun Jaya', 'state' => 'Perak',
         'owner_name' => $company->user->name, 'email' => $company->user->email,
-        'community_id' => 'KOM-0099', 'is_active' => '1', 'account_active' => '1',
+        'community_id' => 'KOM-0099', 'ic_number' => $company->user->ic_number, 'is_active' => '1', 'account_active' => '1',
     ])->assertSessionHas('success');
 
     expect($company->user->fresh()->community_id)->toBe('KOM-0099');

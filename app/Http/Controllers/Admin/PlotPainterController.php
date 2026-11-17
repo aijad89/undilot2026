@@ -27,7 +27,7 @@ use Illuminate\Validation\ValidationException;
  *
  * What it does NOT change is the plot_code rule. After a save the plots are
  * renumbered with Plot::codeFor(), the rule doGeneratePlots() uses, so a painted
- * RKP plot is still HALL A-RKP1.
+ * RKP plot is still RKP01.
  *
  * Gated `can:manage-events` in routes/web.php: painting is a change to the plan.
  */
@@ -136,7 +136,8 @@ class PlotPainterController extends Controller
 
     /**
      * Rewrite every plot_code from what is now painted on it. The counter is per
-     * location and token, as in doGeneratePlots().
+     * token across the whole event, as in doGeneratePlots(), so plots are walked
+     * in plan order — location by location, then by their old number.
      *
      * $known maps id => code for every code posted; a plot's cached `bidang`
      * relation still describes its OLD bidang_id, so it cannot be asked. Only a
@@ -146,18 +147,23 @@ class PlotPainterController extends Controller
     {
         $counters = [];
 
-        foreach ($plots->sortBy('plot_code', SORT_NATURAL) as $plot) {
-            $location = $plot->plotSize->location;
+        $inPlanOrder = $plots->sortBy([
+            fn ($a, $b) => $a->plot_size_id <=> $b->plot_size_id,
+            fn ($a, $b) => strnatcmp((string) $a->plot_code, (string) $b->plot_code),
+            fn ($a, $b) => $a->id <=> $b->id,
+        ]);
 
+        foreach ($inPlanOrder as $plot) {
             // The craft code where it has one; the size where it does not.
             $token = $plot->bidang_id
                 ? ($known[$plot->bidang_id] ?? KrafBidang::whereKey($plot->bidang_id)->value('code'))
                 : $plot->plotSize->size;
 
-            $key = ($location ?: 'LOC').'|'.$token;
+            // The same key doGeneratePlots() counts by: the code as printed.
+            $key = rtrim(substr(Plot::codeFor($token, 0), 0, -2), '-');
             $counters[$key] = ($counters[$key] ?? 0) + 1;
 
-            $plot->plot_code = Plot::codeFor($location, $token, $counters[$key]);
+            $plot->plot_code = Plot::codeFor($token, $counters[$key]);
             $plot->save();
         }
     }

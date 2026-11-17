@@ -11,15 +11,16 @@
       $event          — the Event being edited, or null while creating
       $groupedBidangs — from PollingController::groupedBidangs()
 
-    A card here is a LOCATION, with one line per booth size it holds — "B: 20 ×
-    3x3, 10 × 3x6". One hall holds more than one size, and a single size per
-    location could not say so; a second card with the same name was the only way
-    round it, and that one cannot be reopened faithfully.
+    A card here is a LOCATION. Its plots are its craft code allocations (code,
+    size, plots) plus optional SPARE lines (size, plots) — plots with no code,
+    the open pool a company draws from when its own code has run out. The
+    location's totals are counted from those two and never typed: a typed
+    "booth sizes here" section used to repeat what the allocations already said
+    (removed 2026-11-17, owner's decision).
 
-    Each line is one plot_sizes row, a (location, size) pair — what a plot
-    carries, and what a registration's booth size is matched against. An
-    allocation under the card picks one of the card's sizes; what no allocation
-    claims at a size is the open pool at that size.
+    Each (location, size) is one plot_sizes row — what a plot carries, and what
+    a registration's booth size is matched against. Its quantity is the sum of
+    the allocations and spares at that size.
 
     An allocation belongs to one location, not to the event, so it is nested
     under its location rather than listed flat. The link travels in a hidden
@@ -31,22 +32,29 @@
     // One shape for all three sources — old input after a bounce, what is on
     // file when editing, and a single starter card when neither applies — so the
     // card below is written once instead of once per case.
-    // 'sizes' keeps its keys: they are the plot_sizes[i][sizes][j] numbering.
+    // 'spares' keeps its keys: they are the plot_sizes[i][spares][j] numbering.
+    // On file, a pair's spares are what its allocations do not claim.
     $locationsToRender = old('plot_sizes')
         ? collect(old('plot_sizes'))->map(fn ($s) => [
             'location' => $s['location'] ?? '',
-            'sizes' => $s['sizes'] ?? [['size' => '', 'quantity' => 1]],
+            'spares' => $s['spares'] ?? [],
         ])->values()
         : ($event?->plotSizes
             ->groupBy(fn ($s) => (string) $s->location)
             ->map(fn ($rows, $loc) => [
                 'location' => $loc,
-                'sizes' => $rows->map(fn ($r) => ['size' => (string) $r->size, 'quantity' => $r->quantity])->values()->all(),
+                'spares' => $rows
+                    ->map(fn ($r) => [
+                        'size' => (string) $r->size,
+                        'quantity' => $r->quantity - $event->bidangAllocations->where('plot_size_id', $r->id)->sum('plots_count'),
+                    ])
+                    ->filter(fn ($line) => $line['quantity'] > 0)
+                    ->values()->all(),
             ])
             ->values() ?? collect());
 
     if ($locationsToRender->isEmpty()) {
-        $locationsToRender = collect([['location' => 'A', 'sizes' => [['size' => '', 'quantity' => 30]]]]);
+        $locationsToRender = collect([['location' => 'A', 'spares' => []]]);
     }
 
     $locationKeys = $locationsToRender->map(fn ($l) => (string) $l['location'])->all();
@@ -79,7 +87,7 @@
     // since dropped from Settings must not lose it on the next save.
     $sizeOptions = collect(\App\Support\PlotSizes::all())
         ->merge(collect($allocationsToRender)->pluck('size'))
-        ->merge($locationsToRender->pluck('sizes')->flatten(1)->pluck('size'))
+        ->merge($locationsToRender->pluck('spares')->flatten(1)->pluck('size'))
         ->map(fn ($s) => trim((string) $s))
         ->filter()
         ->unique()
@@ -90,7 +98,6 @@
 @foreach($locationsToRender as $psIndex => $loc)
     @php
         $allocsForSize = $allocationsBySize[$psIndex] ?? collect();
-        $cardSizes     = collect($loc['sizes'])->pluck('size')->map(fn ($s) => trim((string) $s))->filter()->unique()->values();
     @endphp
     <div class="plot-size-row mb-3" data-size-idx="{{ $psIndex }}" style="border:1px solid var(--ui-border);border-radius:12px;overflow:hidden;">
         <div class="p-3 px-4" style="background:var(--ui-surface-2);">
@@ -100,33 +107,9 @@
                     <input type="text" name="plot_sizes[{{ $psIndex }}][location]" class="mac-form-control plot-location" value="{{ $loc['location'] }}" placeholder="e.g., A" required>
                 </div>
                 <div class="col-auto d-flex align-items-end">
+                    {{-- Counted by the script from the codes and spares below. --}}
+                    <span class="mac-muted mac-text-sm me-2" style="line-height:38px;">Total: <strong class="location-total">0</strong> plots</span>
                     <button type="button" class="mac-action-btn-danger mac-action-btn-field remove-size" aria-label="Remove this location" title="Remove location" @if($locationsToRender->count() <= 1) disabled @endif><i class="bi bi-trash" aria-hidden="true"></i></button>
-                </div>
-            </div>
-
-            {{-- One line per booth size this location holds. --}}
-            <div class="mt-3">
-                <label class="mac-label mb-1">Booth sizes here <span class="text-danger">*</span></label>
-                <div class="size-lines">
-                    @foreach($loc['sizes'] as $lineIdx => $line)
-                        <div class="size-line d-flex align-items-center gap-2 mb-2">
-                            <select name="plot_sizes[{{ $psIndex }}][sizes][{{ $lineIdx }}][size]" class="mac-select line-size" required aria-label="Booth size" style="max-width:140px;">
-                                @foreach($sizeOptions as $option)
-                                    <option value="{{ $option }}" @selected(trim((string) ($line['size'] ?? '')) === $option)>{{ $option }}</option>
-                                @endforeach
-                            </select>
-                            <span class="mac-muted">×</span>
-                            <input type="number" name="plot_sizes[{{ $psIndex }}][sizes][{{ $lineIdx }}][quantity]" class="mac-form-control line-quantity" value="{{ $line['quantity'] ?? 1 }}" required min="1" aria-label="Plots of this size" style="max-width:110px;">
-                            <span class="mac-muted mac-text-sm">plots</span>
-                            <button type="button" class="mac-action-btn mac-action-btn-danger remove-line" aria-label="Remove this size" title="Remove this size" @if(count($loc['sizes']) <= 1) disabled @endif><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-                        </div>
-                    @endforeach
-                </div>
-                <div class="d-flex justify-content-between align-items-center">
-                    <button type="button" class="add-line-btn mac-btn-secondary" style="font-size:0.8125rem;padding:4px 10px;">
-                        <i class="bi bi-plus"></i> Add size
-                    </button>
-                    <span class="mac-muted mac-text-sm">Total: <strong class="location-total">0</strong> plots</span>
                 </div>
             </div>
         </div>
@@ -183,9 +166,9 @@
                             </div>
                             <div class="col-md-2">
                                 <label class="mac-label">Size <span class="text-danger">*</span></label>
-                                {{-- Only this location's sizes; the script keeps it in step with the lines. --}}
+                                {{-- Any size in Settings: picking it here is what puts that size in the location. --}}
                                 <select name="bidang_allocations[{{ $baIdx }}][size]" class="mac-select bidang-size" required>
-                                    @foreach($cardSizes->push(trim((string) ($alloc['size'] ?? '')))->filter()->unique() as $option)
+                                    @foreach($sizeOptions as $option)
                                         <option value="{{ $option }}" {{ ($alloc['size'] ?? '') === $option ? 'selected' : '' }}>{{ $option }}</option>
                                     @endforeach
                                 </select>
@@ -202,6 +185,34 @@
                 @endforeach
             </div>
         </div>
+
+        {{-- Optional. Plots with no code: the open pool at that size, drawn by a
+             company whose own code has run out. None is a valid answer. --}}
+        <div class="spare-container p-3" style="border-top:1px solid var(--ui-sep);">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="fw-semibold" style="color:var(--ui-text-2);">
+                    Spare plots <span class="mac-muted" style="font-weight:400;">— no code, optional</span>
+                </small>
+                <button type="button" class="add-spare-btn mac-btn-secondary" style="font-size:0.8125rem;padding:4px 10px;">
+                    <i class="bi bi-plus"></i> Add spare plots
+                </button>
+            </div>
+            <div class="spare-lines">
+                @foreach($loc['spares'] as $lineIdx => $line)
+                    <div class="spare-line d-flex align-items-center gap-2 mb-2">
+                        <select name="plot_sizes[{{ $psIndex }}][spares][{{ $lineIdx }}][size]" class="mac-select spare-size" required aria-label="Spare plot size" style="max-width:140px;">
+                            @foreach($sizeOptions as $option)
+                                <option value="{{ $option }}" @selected(trim((string) ($line['size'] ?? '')) === $option)>{{ $option }}</option>
+                            @endforeach
+                        </select>
+                        <span class="mac-muted">×</span>
+                        <input type="number" name="plot_sizes[{{ $psIndex }}][spares][{{ $lineIdx }}][quantity]" class="mac-form-control spare-quantity" value="{{ $line['quantity'] ?? 1 }}" required min="1" aria-label="Spare plots of this size" style="max-width:110px;">
+                        <span class="mac-muted mac-text-sm">plots</span>
+                        <button type="button" class="mac-action-btn mac-action-btn-danger remove-spare" aria-label="Remove these spare plots" title="Remove"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                    </div>
+                @endforeach
+            </div>
+        </div>
     </div>
 @endforeach
 </div>{{-- /plotSizesContainer --}}
@@ -209,6 +220,6 @@
 <div class="alert alert-info mt-3">
     <i class="bi bi-info-circle"></i>
     <strong>Total plots:</strong> <span id="calculatedTotal">0</span> &nbsp;|&nbsp;
-    <strong>Craft codes allocated:</strong> <span id="allocationTotal">0</span> / <span id="allocationTotalExpected">0</span>
-    <span id="allocationStatus"></span>
+    <strong>With a craft code:</strong> <span id="allocationTotal">0</span> &nbsp;|&nbsp;
+    <strong>Spare:</strong> <span id="spareTotal">0</span>
 </div>

@@ -327,18 +327,22 @@ lubang; jangan "betulkan".
 
 ### Baris `plot_sizes` ialah pasangan (lokasi, saiz)
 
-Borang tidak menaip pasangan itu terus: satu baris pada borang ialah **lokasi**
-dengan kiraan, dan setiap peruntukan kraf yang bersarang di bawahnya menamakan
-**saiznya sendiri**. `PollingController::savePlan()` menyelesaikannya kembali
-kepada baris, memadan pada (lokasi, saiz) supaya pasangan yang terselamat
-mengekalkan id-nya. `total_plots` dikira di sana, tidak pernah diambil daripada
-borang.
+Borang tidak menaip pasangan itu terus, **dan tidak menaip jumlah**
+(keputusan pemilik 2026-11-17 — bahagian "Booth sizes here" dibuang kerana
+mengulang peruntukan). Satu kad ialah **lokasi**; plotnya ialah peruntukan kod
+kraf (kod, saiz, bilangan) **ditambah** baris **plot simpanan** pilihan
+(`plot_sizes.*.spares`: saiz, bilangan — plot tanpa kod, kolam terbuka).
+`PollingController::savePlan()` menjumlahkan kedua-duanya per (lokasi, saiz),
+memadan pada (lokasi, saiz) supaya pasangan yang terselamat mengekalkan id-nya.
+Tiada "terlebih peruntukan" lagi — tiada nombor kedua untuk bercanggah. Lokasi
+tanpa kod dan tanpa simpanan ditolak. Bila dibuka semula, simpanan = kuantiti
+pasangan tolak peruntukannya. `total_plots` dikira, tidak pernah dari borang.
 
 Saiz gerai sebuah pendaftaran ialah `event_registrations.plot_size` — satu
 **string**, lalai `3x3`. Bukan rujukan `plot_sizes`: pejabat menyatakannya
 sebelum sebarang pelan wujud, kerana pelan dibina daripada nombor itu.
 
-**Setiap lokasi menamakan saiz plot lebihannya** (`plot_sizes.*.size`, wajib).
+**Setiap plot menamakan saiznya** (`bidang_allocations.*.size` dan `plot_sizes.*.spares.*.size`, wajib).
 Lot hanya ditarik pada saiz gerai pendaftaran itu sendiri, jadi plot tanpa saiz
 tidak pernah boleh dimenangi. Borang `daftar` tidak pernah menghantar medan itu,
 dan setiap plot lebihan yang dibinanya mati.
@@ -482,6 +486,54 @@ menyemak status terbit — peserta dalam cabutan tidak boleh terkunci daripadany
 
 **Awas:** penjadual menukar `open` → `closed` bila `registration_close_at` lepas
 jika `auto_close` hidup — acara itu kini hilang dari laman awam pada saat itu.
+
+### Peserta log masuk dengan ID Komuniti + IC, tanpa kata laluan
+
+Keputusan pemilik 2026-11-17: peserta tidak memberi emel, jadi aliran kata
+laluan (yang hanya bermula dengan pautan reset melalui emel) tidak boleh
+membawa mereka masuk. `LoginRequest` mencari **satu** akaun yang memegang
+kedua-dua nilai: ID dipotong ruang dan tidak peka huruf besar, IC dibanding
+sebagai **digit** (`890508-12-0000` = `890508120000`). Dua akaun dengan pasangan
+yang sama → ditolak, bukan yang pertama. Had cuba: 5 per ID Komuniti + IP
+(bukan per IC, atau setiap tekaan memulakan kiraan baharu).
+
+**Kelemahan yang diterima buat sementara:** kedua-dua nilai bukan rahsia — IC
+dicetak pada slip. Pasukan akan menyemak semula kemudian; **jangan "betulkan"
+tanpa keputusan pemilik.** Admin tidak berubah: `/admin/login` kekal emel +
+kata laluan.
+
+Akibatnya: borang syarikat **mewajibkan** ID Komuniti dan IC; emel pilihan
+(kosong → `peserta<digit IC>@legacy.test`, alamat yang tidak boleh terima
+mel, sama seperti import). Import memberi amaran untuk baris tanpa
+`no_komuniti` — orang itu tidak boleh log masuk. Route reset kata laluan
+masih wujud tetapi pautannya dibuang dari borang log masuk.
+
+### Nombor lot: `TBPS02`, tanpa lokasi (keputusan pemilik 2026-11-17)
+
+`Plot::codeFor($token, $n)` = kod kraf + nombor dipad dua digit (`TBPS01`,
+`TBPS100` selepas 99). Plot tanpa kod memakai saiz dengan sengkang
+(`3X3-04`) supaya digit saiz tidak bercantum dengan nombor. **Tiada lokasi
+dalam label** — slip mencetak lokasi pada barisnya sendiri. Jadi pembilang
+dikira **per kod merentas seluruh acara**, bukan per lokasi: TBPS di dua dewan
+bersambung (`TBPS01`–`02` di Dewan A, `TBPS03`–`04` di Dewan B), atau dua gerai
+memegang `TBPS01`. `doGeneratePlots()` dan `PlotPainterController::renumber()`
+kedua-duanya mengunci pada kod sahaja; jangan tambah lokasi semula pada kunci.
+
+### Kategori usahawan: dua nilai sahaja
+
+`EntrepreneurCategories::DEFAULTS` = `Pengeluar atau Pedagang`, `Pemborong`
+(keputusan pemilik 2026-11-17). Senarai lama (ODOI, MSM, agensi kerajaan, NGO…)
+dan peraturan `isExternalEntity()` yang membacanya dibuang — tiada pemanggil.
+Ia `ManagedList`: baris `settings` yang tersimpan menang atas lalai, jadi
+pelayan yang sudah menyimpan senarai lama perlu dikemas kini di Settings.
+
+### Status bayaran ialah pilihan, catatan bayaran ialah teks
+
+`event_registrations.payment_status` (`EventRegistration::PAYMENT_STATUSES`:
+`paid` / `unpaid`, string bukan enum) diisi pegawai bersebelahan
+`payment_note`, melalui borang dan route yang sama. Peraturannya sama dengan
+catatan: perubahan oleh admin negeri mengosongkan `verified_at`, dan baris tanpa
+status dikira "missing" dalam senarai cabutan. Ia tidak menyekat cabutan.
 
 ### IC pada slip ialah suis, `SLIP_SHOWS_IC`
 

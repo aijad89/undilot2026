@@ -51,7 +51,6 @@
                     </option>
                 @endforeach
             </select>
-            <small class="mac-muted">A government agency or NGO is reserved a lot rather than drawn one.</small>
         </div>
 
         <div class="col-md-6 d-flex align-items-end">
@@ -83,7 +82,8 @@
         <div class="col-md-6">
             <label class="mac-label" for="email">Email</label>
             <input type="email" id="email" name="email" class="mac-form-control"
-                   value="{{ $owner('email', 'email') }}" required maxlength="255">
+                   value="{{ $owner('email', 'email') }}" maxlength="255">
+            <small class="mac-muted">Optional. The participant signs in with community ID and IC.</small>
         </div>
 
         <div class="col-md-4">
@@ -95,13 +95,13 @@
         <div class="col-md-4">
             <label class="mac-label" for="ic_number">IC number</label>
             <input type="text" id="ic_number" name="ic_number" class="mac-form-control"
-                   value="{{ $owner('ic_number', 'ic_number') }}" placeholder="990101-01-1234">
+                   value="{{ $owner('ic_number', 'ic_number') }}" placeholder="990101-01-1234" required>
         </div>
 
         <div class="col-md-4">
             <label class="mac-label" for="community_id">Community ID</label>
             <input type="text" id="community_id" name="community_id" class="mac-form-control"
-                   value="{{ $owner('community_id', 'community_id') }}" maxlength="50">
+                   value="{{ $owner('community_id', 'community_id') }}" maxlength="50" required>
         </div>
 
         <div class="col-12">

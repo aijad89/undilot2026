@@ -127,16 +127,28 @@
                                 </td>
 
                                 <td class="mac-text-sm">
-                                    {{-- Every company is added by the office, so the zone always
-                                         writes how it paid: receipt no., date, method. --}}
+                                    {{-- Every company is added by the office, so the officer
+                                         records whether it paid, and how: receipt no., date, method. --}}
                                     <form method="POST" action="{{ route('admin.events.registrations.payment-note', [$event, $registration]) }}" class="d-flex gap-1">
                                         @csrf
                                         @method('PUT')
+                                        <select name="payment_status" class="mac-select mac-action-btn-field" style="min-width: 100px"
+                                                aria-label="Payment status for {{ $registration->company->name }}">
+                                            <option value="">— Status —</option>
+                                            @foreach(\App\Models\EventRegistration::PAYMENT_STATUSES as $key => $label)
+                                                <option value="{{ $key }}" @selected($registration->payment_status === $key)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
                                         <input type="text" name="payment_note" value="{{ $registration->payment_note }}" maxlength="500"
                                                class="mac-form-control mac-action-btn-field" style="min-width: 120px" placeholder="Receipt no., date"
                                                aria-label="Payment note for {{ $registration->company->name }}">
-                                        <button type="submit" class="mac-action-btn" title="Save payment note"><i class="bi bi-check-lg"></i></button>
+                                        <button type="submit" class="mac-action-btn" title="Save payment"><i class="bi bi-check-lg"></i></button>
                                     </form>
+                                    @if(! $registration->payment_status)
+                                        <div class="mac-muted mt-1">Payment status not recorded yet.</div>
+                                    @elseif($registration->payment_status === 'unpaid')
+                                        <span class="mac-badge mac-badge-red mt-1">Not paid</span>
+                                    @endif
                                     @unless($registration->payment_note)
                                         <div class="mac-muted mt-1">Added by the office, no payment note yet.</div>
                                     @endunless

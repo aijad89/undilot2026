@@ -6,9 +6,9 @@ use App\Models\EventRegistration;
 use App\Models\User;
 
 /*
- * The draw list counts, in each row's Actions column, how many of the three
- * details the office fills in are still empty — payment note, craft code,
- * booth size — so a zone sees which rows are not ready for HQ. "1 missing",
+ * The draw list counts, in each row's Actions column, how many of the four
+ * details the office fills in are still empty — payment status, payment note,
+ * craft code, booth size — so a zone sees which rows are not ready for HQ. "1 missing",
  * "2 missing"; nothing when the row is complete. The badge's title names them.
  */
 
@@ -17,6 +17,7 @@ function rowMissing(Event $event, array $details): EventRegistration
     return EventRegistration::factory()->create($details + [
         'event_id' => $event->id,
         'company_id' => Company::factory()->create(['user_id' => User::factory()->create()->id, 'state' => 'Johor'])->id,
+        'payment_status' => 'paid',
         'payment_note' => 'Resit 0042',
         'code' => 'TBPS',
         'plot_size' => '3x3',
@@ -27,6 +28,7 @@ it('names the model\'s missing details in the order the list shows them', functi
     $event = Event::factory()->create();
 
     expect(rowMissing($event, [])->missingDetails())->toBe([])
+        ->and(rowMissing($event, ['payment_status' => null])->missingDetails())->toBe(['payment status'])
         ->and(rowMissing($event, ['payment_note' => null])->missingDetails())->toBe(['payment note'])
         ->and(rowMissing($event, ['payment_note' => '', 'code' => null])->missingDetails())->toBe(['payment note', 'craft code'])
         ->and(rowMissing($event, ['payment_note' => null, 'code' => '', 'plot_size' => null])->missingDetails())
@@ -104,6 +106,7 @@ it('filters to the rows missing one named detail', function (string $detail, arr
     expect($names)->toBe([$hit->company->name])
         ->and(in_array($other->company->name, $names, true))->toBeFalse();
 })->with([
+    'payment status' => ['payment_status', ['payment_status' => null]],
     'payment note' => ['payment_note', ['payment_note' => null]],
     'craft code' => ['code', ['code' => '']],
     'booth size' => ['plot_size', ['plot_size' => null]],
@@ -133,12 +136,12 @@ it('ignores a value it does not offer, rather than erroring', function () {
     expect(listedFor($this, $event, ['missing' => 'companies.name']))->toBe([$complete->company->name]);
 });
 
-it('offers the four choices, keeping the applied one selected', function () {
+it('offers the five choices, keeping the applied one selected', function () {
     $event = Event::factory()->create(['status' => 'open', 'polling_status' => 'draft']);
     rowMissing($event, []);
 
     $this->actingAs(superAdmin(), 'admin')
         ->get(route('admin.events.registrations.index', [$event, 'missing' => 'code']))
-        ->assertSeeInOrder(['Any details', 'Missing a detail', 'No payment note', 'No craft code', 'No booth size'])
+        ->assertSeeInOrder(['Any details', 'Missing a detail', 'No payment status', 'No payment note', 'No craft code', 'No booth size'])
         ->assertSee('<option value="code" selected>No craft code</option>', false);
 });

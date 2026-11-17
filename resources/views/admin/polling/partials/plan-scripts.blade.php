@@ -45,42 +45,18 @@ document.addEventListener('DOMContentLoaded', function() {
         return sizes.map(s => `<option value="${s}">${s}</option>`).join('');
     }
 
-    // ── A location's booth sizes, read off its size lines ──
-    function cardSizes(plotSizeRow) {
-        return [...new Set(
-            [...plotSizeRow.querySelectorAll('.line-size')].map(s => s.value.trim()).filter(Boolean)
-        )];
-    }
-
-    // One size line. j only has to be unique within its card.
-    function lineHtml(i, j) {
+    // One spare line — plots with no code. j only has to be unique within its card.
+    function spareHtml(i, j) {
         return `
-            <div class="size-line d-flex align-items-center gap-2 mb-2">
-                <select name="plot_sizes[${i}][sizes][${j}][size]" class="mac-select line-size" required aria-label="Booth size" style="max-width:140px;">
+            <div class="spare-line d-flex align-items-center gap-2 mb-2">
+                <select name="plot_sizes[${i}][spares][${j}][size]" class="mac-select spare-size" required aria-label="Spare plot size" style="max-width:140px;">
                     ${getSizesHtml()}
                 </select>
                 <span class="mac-muted">×</span>
-                <input type="number" name="plot_sizes[${i}][sizes][${j}][quantity]" class="mac-form-control line-quantity" value="1" required min="1" aria-label="Plots of this size" style="max-width:110px;">
+                <input type="number" name="plot_sizes[${i}][spares][${j}][quantity]" class="mac-form-control spare-quantity" value="1" required min="1" aria-label="Spare plots of this size" style="max-width:110px;">
                 <span class="mac-muted mac-text-sm">plots</span>
-                <button type="button" class="mac-action-btn mac-action-btn-danger remove-line" aria-label="Remove this size" title="Remove this size"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                <button type="button" class="mac-action-btn mac-action-btn-danger remove-spare" aria-label="Remove these spare plots" title="Remove"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
             </div>`;
-    }
-
-    // An allocation can only be at a size its location has. Rebuilt whenever
-    // the lines change; a picked size that is still there stays picked.
-    function syncAllocationSizes(plotSizeRow) {
-        const sizes = cardSizes(plotSizeRow);
-        plotSizeRow.querySelectorAll('.bidang-size').forEach(select => {
-            const picked = select.value;
-            select.innerHTML = getSizesHtml(sizes);
-            if (sizes.includes(picked)) select.value = picked;
-        });
-    }
-
-    // A card's last line has nothing to fall back on, so it cannot be removed.
-    function refreshLineButtons(plotSizeRow) {
-        const buttons = plotSizeRow.querySelectorAll('.remove-line');
-        buttons.forEach(b => { b.disabled = buttons.length <= 1; });
     }
 
     // ── Category options HTML ──────────────────────────────
@@ -158,53 +134,43 @@ document.addEventListener('DOMContentLoaded', function() {
         return (row?.querySelector('.bidang-size')?.value || '').trim();
     }
 
-    // ── What is left at each size of one location ──────────
-    // Per size, because an allocation only uses plots of its own size: 5 spare
-    // 3x3 cannot cover 2 too many 3x6. What is left at a size is the open pool
-    // there, drawn by anyone whose code has run out.
+    // ── One location's plots, per size ──────────────────────
+    // Counted, as the server counts them: every code allocation plus every
+    // spare line at that size. Nothing to over- or under-allocate — there is no
+    // typed total for them to disagree with.
     function updateSizeRemainingBadge(plotSizeRow) {
-        const badge = plotSizeRow.querySelector('.size-remaining-badge');
-        if (!badge) return;
-
         const holds = {};
         let total = 0;
-        plotSizeRow.querySelectorAll('.size-line').forEach(line => {
-            const size = line.querySelector('.line-size')?.value.trim() || '';
-            const n = parseInt(line.querySelector('.line-quantity')?.value) || 0;
-            holds[size] = (holds[size] || 0) + n;
-            total += n;
+        const add = (size, n) => { holds[size] = (holds[size] || 0) + n; total += n; };
+
+        plotSizeRow.querySelectorAll('.bidang-allocation-row').forEach(row => {
+            add(rowSize(row), parseInt(row.querySelector('.plots-count')?.value) || 0);
+        });
+        plotSizeRow.querySelectorAll('.spare-line').forEach(line => {
+            add(line.querySelector('.spare-size')?.value.trim() || '', parseInt(line.querySelector('.spare-quantity')?.value) || 0);
         });
 
         const totalEl = plotSizeRow.querySelector('.location-total');
         if (totalEl) totalEl.textContent = total;
 
-        const left = { ...holds };
-        plotSizeRow.querySelectorAll('.bidang-allocation-row').forEach(row => {
-            const size = rowSize(row);
-            left[size] = (left[size] || 0) - (parseInt(row.querySelector('.plots-count')?.value) || 0);
-        });
-
-        const sizes = Object.keys(left);
-        const over = sizes.filter(s => left[s] < 0);
-        const spare = sizes.filter(s => left[s] > 0);
-
-        if (over.length) {
-            badge.textContent = over.map(s => `${s} over by ${-left[s]}`).join(' · ');
-            badge.className = 'size-remaining-badge mac-badge mac-badge-red';
-        } else if (spare.length === 0) {
-            badge.textContent = 'All allocated ✓';
-            badge.className = 'size-remaining-badge mac-badge mac-badge-green';
-        } else {
-            badge.textContent = spare.map(s => `${s}: ${left[s]} left for anyone`).join(' · ');
-            badge.className = 'size-remaining-badge mac-badge mac-badge-gray';
-        }
+        const badge = plotSizeRow.querySelector('.size-remaining-badge');
+        if (!badge) return;
+        const sizes = Object.keys(holds).filter(s => holds[s] > 0);
+        badge.textContent = sizes.map(s => `${s}: ${holds[s]}`).join(' · ');
+        badge.className = 'size-remaining-badge mac-badge mac-badge-gray';
+        badge.hidden = sizes.length === 0;   // an empty pill reads as a glitch
     }
 
     // ── Sync total_plots hidden field + global summary ─────
     function calculateTotals() {
-        let total = 0;
-        document.querySelectorAll('.line-quantity').forEach(inp => { total += parseInt(inp.value) || 0; });
+        let coded = 0;
+        let spare = 0;
+        document.querySelectorAll('.plots-count').forEach(inp => { coded += parseInt(inp.value) || 0; });
+        document.querySelectorAll('.spare-quantity').forEach(inp => { spare += parseInt(inp.value) || 0; });
+        const total = coded + spare;
         document.getElementById('calculatedTotal').textContent = total;
+        document.getElementById('allocationTotal').textContent = coded;
+        document.getElementById('spareTotal').textContent = spare;
         const display = document.getElementById('totalPlotsDisplay');
         if (display) display.textContent = total;
         document.getElementById('totalPlotsInput').value = total;
@@ -414,23 +380,6 @@ document.addEventListener('DOMContentLoaded', function() {
         retallyCoverage();
         refreshCodeChoices();
         refreshCategoryChoices();
-
-        let totalAllocated = 0;
-        document.querySelectorAll('.plots-count').forEach(inp => { totalAllocated += parseInt(inp.value) || 0; });
-        const totalPlots = parseInt(document.getElementById('totalPlotsInput').value) || 0;
-        document.getElementById('allocationTotal').textContent = totalAllocated;
-        const expEl = document.getElementById('allocationTotalExpected');
-        if (expEl) expEl.textContent = totalPlots;
-        const statusEl = document.getElementById('allocationStatus');
-        if (totalPlots === 0) {
-            statusEl.innerHTML = '';
-        } else if (totalAllocated === totalPlots) {
-            statusEl.innerHTML = '<span class="text-success ms-2"><i class="bi bi-check-circle"></i> All plots covered ✓</span>';
-        } else if (totalAllocated > totalPlots) {
-            statusEl.innerHTML = `<span class="text-danger ms-2"><i class="bi bi-exclamation-triangle"></i> Over by ${totalAllocated - totalPlots}</span>`;
-        } else {
-            statusEl.innerHTML = `<span class="ms-2" style="color:var(--ui-warn-text);"><i class="bi bi-exclamation-triangle"></i> ${totalPlots - totalAllocated} not yet assigned</span>`;
-        }
     }
 
     // ── Re-index plot size rows after add/remove ───────────
@@ -472,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="col-md-2">
                         <label class="mac-label">Size <span class="text-danger">*</span></label>
                         <select name="bidang_allocations[${n}][size]" class="mac-select bidang-size" required>
-                            ${getSizesHtml(cardSizes(plotSizeRow))}
+                            ${getSizesHtml()}
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -487,8 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>`;
         plotSizeRow.querySelector('.bidang-rows-container').insertAdjacentHTML('beforeend', html);
-        updateSizeRemainingBadge(plotSizeRow);
-        calculateAllocations();
+        calculateTotals();
     }
 
     // ── Add Location row ───────────────────────────────────
@@ -503,17 +451,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <input type="text" name="plot_sizes[${idx}][location]" class="mac-form-control plot-location" placeholder="e.g., B" required>
                         </div>
                         <div class="col-auto d-flex align-items-end">
+                            <span class="mac-muted mac-text-sm me-2" style="line-height:38px;">Total: <strong class="location-total">0</strong> plots</span>
                             <button type="button" class="mac-action-btn-danger mac-action-btn-field remove-size" aria-label="Remove this location" title="Remove location"><i class="bi bi-trash" aria-hidden="true"></i></button>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <label class="mac-label mb-1">Booth sizes here <span class="text-danger">*</span></label>
-                        <div class="size-lines">${lineHtml(idx, 0)}</div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <button type="button" class="add-line-btn mac-btn-secondary" style="font-size:0.8125rem;padding:4px 10px;">
-                                <i class="bi bi-plus"></i> Add size
-                            </button>
-                            <span class="mac-muted mac-text-sm">Total: <strong class="location-total">1</strong> plots</span>
                         </div>
                     </div>
                 </div>
@@ -529,12 +468,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <div class="bidang-rows-container"></div>
                 </div>
+                <div class="spare-container p-3" style="border-top:1px solid var(--ui-sep);">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="fw-semibold" style="color:var(--ui-text-2);">
+                            Spare plots <span class="mac-muted" style="font-weight:400;">— no code, optional</span>
+                        </small>
+                        <button type="button" class="add-spare-btn mac-btn-secondary" style="font-size:0.8125rem;padding:4px 10px;">
+                            <i class="bi bi-plus"></i> Add spare plots
+                        </button>
+                    </div>
+                    <div class="spare-lines"></div>
+                </div>
             </div>`;
         // On top, where the admin is looking. reindexPlotSizes() renumbers every
         // row by its place on screen, so the order sent is the order shown.
         const container = document.getElementById('plotSizesContainer');
         container.insertAdjacentHTML('afterbegin', html);
-        refreshLineButtons(container.querySelector('.plot-size-row'));
         reindexPlotSizes();
         calculateTotals();
         container.querySelector('.plot-size-row .plot-location').focus();
@@ -573,50 +522,32 @@ Its ${n} bidang allocation${n > 1 ? 's' : ''} will be removed with it.` : ''));
         if (e.target.closest('.add-bidang-btn')) {
             addBidangRowTo(e.target.closest('.plot-size-row'));
         }
-        if (e.target.closest('.add-line-btn')) {
+        if (e.target.closest('.add-spare-btn')) {
             const card = e.target.closest('.plot-size-row');
             // The next free j in this card, past any gap a removal left.
             let next = 0;
-            card.querySelectorAll('.line-size').forEach(el => {
-                const m = el.name.match(/\[sizes\]\[(\d+)\]/);
+            card.querySelectorAll('.spare-size').forEach(el => {
+                const m = el.name.match(/\[spares\]\[(\d+)\]/);
                 if (m) next = Math.max(next, parseInt(m[1]) + 1);
             });
-            // Offer a size the card does not have yet, so the new line is not a repeat.
-            const taken = cardSizes(card);
-            card.querySelector('.size-lines').insertAdjacentHTML('beforeend', lineHtml(card.dataset.sizeIdx, next));
-            const newSelect = [...card.querySelectorAll('.line-size')].pop();
-            const fresh = plotSizes.find(s => !taken.includes(s));
-            if (fresh) newSelect.value = fresh;
-            refreshLineButtons(card);
-            syncAllocationSizes(card);
+            card.querySelector('.spare-lines').insertAdjacentHTML('beforeend', spareHtml(card.dataset.sizeIdx, next));
             calculateTotals();
-            newSelect.focus();
+            [...card.querySelectorAll('.spare-size')].pop().focus();
         }
-        if (e.target.closest('.remove-line')) {
-            const card = e.target.closest('.plot-size-row');
-            if (card.querySelectorAll('.size-line').length <= 1) return;
-            e.target.closest('.size-line').remove();
-            refreshLineButtons(card);
-            syncAllocationSizes(card);
+        if (e.target.closest('.remove-spare')) {
+            e.target.closest('.spare-line').remove();
             calculateTotals();
         }
         if (e.target.closest('.remove-bidang')) {
             const bidangRow = e.target.closest('.bidang-allocation-row');
-            const plotSizeRow = bidangRow.closest('.plot-size-row');
             if (!confirmRemoveBidang(bidangRow)) return;
             bidangRow.remove();
-            updateSizeRemainingBadge(plotSizeRow);
-            calculateAllocations();
+            calculateTotals();
         }
     });
 
     document.getElementById('plotSizesContainer').addEventListener('change', function(e) {
-        if (e.target.matches('.line-size')) {
-            const card = e.target.closest('.plot-size-row');
-            syncAllocationSizes(card);
-            updateSizeRemainingBadge(card);
-            calculateAllocations();
-        }
+        if (e.target.matches('.spare-size')) calculateTotals();
         if (e.target.matches('.main-category-select')) {
             updateCodeDropdown(e.target);
             // Rebuilt from scratch, so the codes it just put back have to be
@@ -630,17 +561,12 @@ Its ${n} bidang allocation${n > 1 ? 's' : ''} will be removed with it.` : ''));
         if (e.target.matches('.bidang-select') || e.target.matches('.bidang-size')) {
             if (e.target.matches('.bidang-select')) pickShortSize(e.target.closest('.bidang-allocation-row'));
             autofillPlots(e.target.closest('.bidang-allocation-row'));
-            updateSizeRemainingBadge(e.target.closest('.plot-size-row'));
-            calculateAllocations();
+            calculateTotals();
         }
     });
 
     document.getElementById('plotSizesContainer').addEventListener('input', function(e) {
-        if (e.target.matches('.line-quantity')) calculateTotals();
-        if (e.target.matches('.plots-count')) {
-            updateSizeRemainingBadge(e.target.closest('.plot-size-row'));
-            calculateAllocations();
-        }
+        if (e.target.matches('.spare-quantity') || e.target.matches('.plots-count')) calculateTotals();
     });
 
     // ── Initialise ─────────────────────────────────────────
@@ -650,14 +576,14 @@ Its ${n} bidang allocation${n > 1 ? 's' : ''} will be removed with it.` : ''));
     refreshCodeChoices();
     refreshCategoryChoices();
 
-    // Soft confirm — no bidang allocations means no craft code matching
+    // Soft confirm — no craft codes means every plot is a spare, matched to nobody's code
     document.getElementById('pollingForm').addEventListener('submit', function(e) {
         if (document.querySelectorAll('.bidang-allocation-row').length === 0) {
             const proceed = confirm(
-                'Warning: No bidang allocations added.\n\n' +
-                'Plots will be created without craft category codes. ' +
-                'Lot assignment will be random and will not match companies by their craft category.\n\n' +
-                'Proceed without bidang allocations?'
+                'Warning: No craft codes added.\n\n' +
+                'Only spare plots will be created, with no craft code. ' +
+                'Lot assignment will not match companies by their craft code.\n\n' +
+                'Proceed without craft codes?'
             );
             if (!proceed) {
                 e.preventDefault();

@@ -50,6 +50,7 @@ class EventRegistrationFactory extends Factory
             'first_verified_at' => now(),
             'hq_note' => null,
             'payment_note' => null,
+            'payment_status' => null,
         ];
     }
 

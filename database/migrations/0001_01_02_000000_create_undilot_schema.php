@@ -205,8 +205,8 @@ return new class extends Migration
             // its workshop is.
             $table->string('state')->nullable();
 
-            // Read by Company::isExternalEntity(), which is what lets a
-            // government agency be given a plot outside any craft category.
+            // One of EntrepreneurCategories: 'Pengeluar atau Pedagang' or
+            // 'Pemborong'. A label only; the draw does not read it.
             $table->string('entrepreneur_category')->nullable();
 
             // The company's usual craft code (TBP, RKP…), set by an admin and never
@@ -444,6 +444,10 @@ return new class extends Migration
             // zone for HQ to check. The office enters every company, so this is
             // the only record of payment there is.
             $table->string('payment_note', 500)->nullable();
+
+            // Paid or not, chosen by the officer beside the note: a key of
+            // EventRegistration::PAYMENT_STATUSES. Null until someone says.
+            $table->string('payment_status', 20)->nullable();
 
             $table->timestamps();
 

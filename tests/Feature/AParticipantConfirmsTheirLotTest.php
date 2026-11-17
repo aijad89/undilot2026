@@ -187,7 +187,7 @@ it('runs a whole draw through the screens, from an empty event to everyone seate
         'event_id' => $event->id,
         'polling_start_date' => now()->subHour()->format('Y-m-d\TH:i'),
         'polling_deadline' => now()->addDay()->format('Y-m-d\TH:i'),
-        'plot_sizes' => [['location' => 'Dewan', 'sizes' => [['size' => '3x3', 'quantity' => 4]]]],
+        'plot_sizes' => [['location' => 'Dewan', 'spares' => [['size' => '3x3', 'quantity' => 1]]]],
         'bidang_allocations' => [
             ['bidang_id' => $rkp->id, 'plot_size_index' => 0, 'size' => '3x3', 'plots_count' => 2],
             ['bidang_id' => $tbps->id, 'plot_size_index' => 0, 'size' => '3x3', 'plots_count' => 1],

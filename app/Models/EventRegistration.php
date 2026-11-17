@@ -46,6 +46,17 @@ class EventRegistration extends Model
         'first_verified_at',
         'hq_note',
         'payment_note',
+        'payment_status',
+    ];
+
+    /**
+     * Whether the company has paid, as the officer records it on the draw list.
+     * A string column, not an enum (project rule). Null means not recorded yet,
+     * which the list counts as a missing detail.
+     */
+    public const PAYMENT_STATUSES = [
+        'paid' => 'Paid',
+        'unpaid' => 'Not paid',
     ];
 
     /**
@@ -111,7 +122,7 @@ class EventRegistration extends Model
         static::updating(function (self $registration) {
             $admin = auth('admin')->user();
 
-            if ($admin instanceof Admin && ! $admin->hasGlobalAccess() && $registration->isDirty(['code', 'plot_size', 'payment_note'])) {
+            if ($admin instanceof Admin && ! $admin->hasGlobalAccess() && $registration->isDirty(['code', 'plot_size', 'payment_note', 'payment_status'])) {
                 $registration->verified_at = null;
             }
         });
@@ -119,6 +130,7 @@ class EventRegistration extends Model
 
     /** What the office still has to fill in on this row, in the order the list shows it. */
     private const DETAILS = [
+        'payment_status' => 'payment status',
         'payment_note' => 'payment note',
         'code' => 'craft code',
         'plot_size' => 'booth size',

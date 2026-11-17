@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Support\EntrepreneurCategories;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -143,18 +142,6 @@ class Company extends Model
     public function krafSelections()
     {
         return $this->hasMany(CompanyKraf::class)->orderByDesc('is_primary')->orderBy('id');
-    }
-
-    /**
-     * A government agency or similar, rather than a craft entrepreneur.
-     *
-     * This is what lets a plot be preset for a body that belongs to no craft
-     * category at all — the case that ALWAYS crosses categories, and the one the
-     * draw has to be asked about rather than silently allowed.
-     */
-    public function isExternalEntity(): bool
-    {
-        return in_array($this->entrepreneur_category, EntrepreneurCategories::EXTERNAL_ENTITY, true);
     }
 
     /**

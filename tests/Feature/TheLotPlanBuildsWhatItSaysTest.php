@@ -25,12 +25,16 @@ function planPost(Event $event, array $allocations = [], ?array $locations = nul
     ];
 }
 
-/** One location card as the form posts it: a name and its size lines. */
-function hall(string $name, array $sizes): array
+/**
+ * One location card as the form posts it: a name and its SPARE lines — plots
+ * with no code. Its coded plots come from the allocations, which name the card
+ * by plot_size_index; the location's totals are the two added up.
+ */
+function hall(string $name, array $spares): array
 {
     return [
         'location' => $name,
-        'sizes' => collect($sizes)->map(fn ($n, $size) => ['size' => $size, 'quantity' => $n])->values()->all(),
+        'spares' => collect($spares)->map(fn ($n, $size) => ['size' => $size, 'quantity' => $n])->values()->all(),
     ];
 }
 
@@ -41,7 +45,7 @@ it('builds plots from a plan: coded where allocated, open pool for the rest', fu
     $this->actingAs(superAdmin(), 'admin')
         ->post(route('admin.polling.store'), planPost($event, [
             ['bidang_id' => $rkp->id, 'plot_size_index' => 0, 'size' => '3x6', 'plots_count' => 2],
-        ], [hall('Hall A', ['3x3' => 3, '3x6' => 2])]))
+        ], [hall('Hall A', ['3x3' => 3])]))
         ->assertRedirect(route('admin.polling.show', $event));
 
     $event->refresh();
@@ -49,70 +53,80 @@ it('builds plots from a plan: coded where allocated, open pool for the rest', fu
     expect($event->total_plots)->toBe(5)
         ->and($event->polling_status)->toBe('draft')
         ->and(Plot::where('bidang_id', $rkp->id)->pluck('plot_code')->sort()->values()->all())
-            ->toBe(['HALL A-RKP1', 'HALL A-RKP2'])
+            ->toBe(['RKP01', 'RKP02'])
         ->and(Plot::whereNull('bidang_id')->count())->toBe(3)
         ->and(PlotSize::where('event_id', $event->id)->pluck('quantity', 'size')->all())
             ->toEqual(['3x6' => 2, '3x3' => 3])
         ->and(AuditTrail::where('action', 'plots_generated')->value('new_values')['plots'])->toBe(5);
 });
 
-it('refuses a location with no booth size, or a size line with no size, which nobody could ever draw', function () {
+it('refuses a location with no plots, or a plot with no size, which nobody could ever draw', function () {
     $event = Event::factory()->create();
     $admin = superAdmin();
+    $rkp = KrafBidang::factory()->code('RKP')->create();
 
     $this->actingAs($admin, 'admin')
         ->post(route('admin.polling.store'), planPost($event, [], [['location' => 'Hall A']]))
-        ->assertSessionHasErrors('plot_sizes.0.sizes');
+        ->assertSessionHasErrors(['plot_sizes' => "Location 'Hall A' has no plots. Add a craft code to it, or spare plots, or remove the location."]);
 
     $this->actingAs($admin, 'admin')
-        ->post(route('admin.polling.store'), planPost($event, [], [['location' => 'Hall A', 'sizes' => [['quantity' => 2]]]]))
-        ->assertSessionHasErrors('plot_sizes.0.sizes.0.size');
+        ->post(route('admin.polling.store'), planPost($event, [], [['location' => 'Hall A', 'spares' => [['quantity' => 2]]]]))
+        ->assertSessionHasErrors('plot_sizes.0.spares.0.size');
+
+    $this->actingAs($admin, 'admin')
+        ->post(route('admin.polling.store'), planPost($event, [
+            ['bidang_id' => $rkp->id, 'plot_size_index' => 0, 'plots_count' => 2],
+        ]))
+        ->assertSessionHasErrors('bidang_allocations.0.size');
 
     expect(Plot::count())->toBe(0);
 });
 
-it('holds two booth sizes in one location, and reopens it as one card with both lines', function () {
+it('holds two booth sizes in one location, and reopens it as one card with its codes and spares', function () {
     $event = Event::factory()->create();
     $rkp = KrafBidang::factory()->code('RKP')->create();
     $admin = superAdmin();
 
     $this->actingAs($admin, 'admin')->post(route('admin.polling.store'), planPost($event, [
         ['bidang_id' => $rkp->id, 'plot_size_index' => 0, 'size' => '3x6', 'plots_count' => 4],
-    ], [hall('B', ['3x3' => 20, '3x6' => 10])]))->assertRedirect(route('admin.polling.show', $event));
+    ], [hall('B', ['3x3' => 20, '3x6' => 6])]))->assertRedirect(route('admin.polling.show', $event));
 
     expect(PlotSize::where('event_id', $event->id)->pluck('quantity', 'size')->all())->toEqual(['3x3' => 20, '3x6' => 10])
-        ->and(Plot::where('plot_code', 'like', 'B-RKP%')->count())->toBe(4)
-        ->and(Plot::where('plot_code', 'like', 'B-3X6%')->count())->toBe(6)
-        ->and(Plot::where('plot_code', 'like', 'B-3X3%')->count())->toBe(20);
+        ->and(Plot::where('plot_code', 'like', 'RKP%')->count())->toBe(4)
+        ->and(Plot::where('plot_code', 'like', '3X6-%')->count())->toBe(6)
+        ->and(Plot::where('plot_code', 'like', '3X3-%')->count())->toBe(20);
 
     $html = $this->actingAs($admin, 'admin')->get(route('admin.polling.edit', $event))->assertOk()->getContent();
 
     expect($html)->toContain('name="plot_sizes[0][location]" class="mac-form-control plot-location" value="B"')
         ->not->toContain('name="plot_sizes[1][location]"')
-        ->and($html)->toContain('name="plot_sizes[0][sizes][0][size]"')
-        ->and($html)->toContain('name="plot_sizes[0][sizes][1][size]"')
-        ->and($html)->toMatch('#name="plot_sizes\[0\]\[sizes\]\[1\]\[quantity\]"[^>]*value="10"#');
+        // The spares come back as what the codes do not claim: 3x6 is 10, RKP holds 4.
+        ->and($html)->toMatch('#name="plot_sizes\[0\]\[spares\]\[0\]\[quantity\]"[^>]*value="6"#')
+        ->and($html)->toMatch('#name="plot_sizes\[0\]\[spares\]\[1\]\[quantity\]"[^>]*value="20"#')
+        ->and($html)->toMatch('#name="bidang_allocations\[0\]\[plots_count\]"[^>]*value="4"#')
+        ->and(str_contains($html, 'Booth sizes here'))->toBeFalse();
 });
 
-it('refuses an allocation at a size its location does not have', function () {
+it('puts a size into a location by allocating a code at it, with nothing typed first', function () {
     $event = Event::factory()->create();
     $rkp = KrafBidang::factory()->code('RKP')->create();
 
     $this->actingAs(superAdmin(), 'admin')
         ->post(route('admin.polling.store'), planPost($event, [
             ['bidang_id' => $rkp->id, 'plot_size_index' => 0, 'size' => '3x6', 'plots_count' => 1],
-        ]))
-        ->assertSessionHasErrors(['bidang_allocations' => "Location 'Hall A' has no 3x6 plots. Add a 3x6 line to it, or give the allocation one of its sizes."]);
+        ], [hall('Hall A', [])]))
+        ->assertRedirect(route('admin.polling.show', $event));
 
-    expect(PlotSize::count())->toBe(0);
+    expect(PlotSize::where('event_id', $event->id)->pluck('quantity', 'size')->all())->toEqual(['3x6' => 1])
+        ->and(Plot::whereNull('bidang_id')->count())->toBe(0);
 });
 
-it('refuses the same location on two cards, and says to use size lines', function () {
+it('refuses the same location on two cards, and says to keep one', function () {
     $event = Event::factory()->create();
 
     $this->actingAs(superAdmin(), 'admin')
         ->post(route('admin.polling.store'), planPost($event, [], [hall('B', ['3x3' => 2]), hall('B', ['3x6' => 2])]))
-        ->assertSessionHasErrors(['plot_sizes' => "Location 'B' is on two cards. Keep one card for 'B' and add each booth size to it as a line."]);
+        ->assertSessionHasErrors(['plot_sizes' => "Location 'B' is on two cards. Keep one card for 'B' and put all its craft codes on it."]);
 });
 
 it('refuses a craft category in a code allocation, because no registration can match it', function () {
@@ -128,20 +142,21 @@ it('refuses a craft category in a code allocation, because no registration can m
     expect(Plot::count())->toBe(0);
 });
 
-it('refuses a size allocated past what the location holds of it, and leaves nothing half-written', function () {
+it('counts each size from its codes and its spares, and the total from the sizes', function () {
     $event = Event::factory()->create();
     $rkp = KrafBidang::factory()->code('RKP')->create();
+    $tbps = KrafBidang::factory()->code('TBPS')->create();
 
-    // 8 plots in all against 8 allocated — but only 3 of them are 3x6.
     $this->actingAs(superAdmin(), 'admin')
         ->post(route('admin.polling.store'), planPost($event, [
             ['bidang_id' => $rkp->id, 'plot_size_index' => 0, 'size' => '3x3', 'plots_count' => 4],
-            ['bidang_id' => $rkp->id, 'plot_size_index' => 0, 'size' => '3x6', 'plots_count' => 4],
-        ], [hall('Hall A', ['3x3' => 5, '3x6' => 3])]))
-        ->assertSessionHasErrors(['bidang_allocations' => "Location 'Hall A' holds 3 plots of 3x6, but 4 are allocated."]);
+            ['bidang_id' => $tbps->id, 'plot_size_index' => 0, 'size' => '3x6', 'plots_count' => 4],
+        ], [hall('Hall A', ['3x6' => 3])]))
+        ->assertRedirect(route('admin.polling.show', $event));
 
-    expect(PlotSize::count())->toBe(0)
-        ->and($event->fresh()->total_plots)->toBeNull();
+    expect(PlotSize::where('event_id', $event->id)->pluck('quantity', 'size')->all())->toEqual(['3x3' => 4, '3x6' => 7])
+        ->and($event->fresh()->total_plots)->toBe(11)
+        ->and(Plot::whereNull('bidang_id')->count())->toBe(3);
 });
 
 it('rewrites the plan and records what the rewrite destroyed', function () {
@@ -158,7 +173,7 @@ it('rewrites the plan and records what the rewrite destroyed', function () {
     expect($rewrite->new_values['cascade_deleted']['plots'])->toBe(5)
         ->and($rewrite->new_values['cascade_deleted']['plot_sizes'])->toBe(1)   // Hall A went
         ->and(Plot::where('event_id', $event->id)->count())->toBe(2)
-        ->and(Plot::first()->plot_code)->toStartWith('HALL B-');
+        ->and(Plot::first()->plotSize->location)->toBe('Hall B');
 });
 
 it('counts only the plan rows a rewrite really removed, not the pairs it kept', function () {
@@ -393,7 +408,7 @@ it('renders every page of the lot draw', function () {
         ->assertRedirect(route('admin.polling.show', $event));
 
     $this->actingAs($admin, 'admin')->get(route('admin.polling.index'))->assertOk()->assertSee($event->title);
-    $this->actingAs($admin, 'admin')->get(route('admin.polling.show', $event))->assertOk()->assertSee('A-RKP1');
+    $this->actingAs($admin, 'admin')->get(route('admin.polling.show', $event))->assertOk()->assertSee('RKP01');
     $this->actingAs($admin, 'admin')->get(route('admin.polling.edit', $event))->assertOk()->assertSee('RKP 3x6');
     $this->actingAs($admin, 'admin')
         ->get(route('admin.polling.plots.by-size', [$event, $event->plotSizes()->first()]))

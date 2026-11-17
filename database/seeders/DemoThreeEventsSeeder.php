@@ -162,6 +162,7 @@ class DemoThreeEventsSeeder extends LocalOnlySeeder
                 'first_verified_at' => now(),
                 'hq_note' => null,
                 'payment_note' => 'Resit demo '.str_pad((string) ($n + 1), 4, '0', STR_PAD_LEFT),
+                'payment_status' => 'paid',
             ]);
 
             $sizeRows[$size] ??= PlotSize::create([
@@ -183,7 +184,7 @@ class DemoThreeEventsSeeder extends LocalOnlySeeder
                 'allocated_to' => null,
                 'bidang_id' => $bidang->id,
                 'sub_bidang_id' => null,
-                'plot_code' => Plot::codeFor(self::LOCATION, $code, $registration->id),
+                'plot_code' => Plot::codeFor($code, $registration->id),
                 'is_allocated' => false,
                 'allocation_type' => 'algorithm',
                 'is_locked' => false,

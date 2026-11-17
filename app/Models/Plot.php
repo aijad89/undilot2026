@@ -31,23 +31,28 @@ class Plot extends Model
     ];
 
     /**
-     * A plot's readable number: "HALL A-TBP7".
+     * A plot's readable number: "TBPS02".
      *
      * Minted wherever plots are built or renumbered, and printed on the slip, in
      * the QR, on every PDF and in every admin listing — so the rule lives once.
      *
+     * The office's own format (decided 2026-11-17): the craft code, then the
+     * number padded to two digits — TBPS01, TBPS02 … TBPS10, and TBPS100 once
+     * past 99. NO LOCATION: the slip prints the location on its own line, and
+     * the number is counted per code across the whole event, so TBPS02 is one
+     * plot even when TBPS plots stand in two halls. Callers key their counters
+     * on the code alone for that reason.
+     *
      * $token is the craft code where a plot has one, and the plot size where it
-     * does not: an uncoded plot reads "HALL A-3X34", which says what it is rather
-     * than pretending to a category. The location keeps its spaces.
+     * does not. A size ends in a digit, so it takes a hyphen before the number —
+     * "3X3-04", not "3X304", which reads as plot 304.
      */
-    public static function codeFor(?string $location, ?string $token, int $n): string
+    public static function codeFor(?string $token, int $n): string
     {
-        $place = strtoupper(preg_replace('/[^a-zA-Z0-9 ]/', '', trim($location ?: 'LOC')));
-        $place = preg_replace('/\s+/', ' ', $place) ?: 'LOC';
+        $tag = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', (string) $token)) ?: 'PLOT';
+        $separator = ctype_digit(substr($tag, -1)) ? '-' : '';
 
-        $tag = strtoupper(preg_replace('/[^a-zA-Z0-9]/', '', (string) $token));
-
-        return $place.'-'.($tag ?: 'PLOT').$n;
+        return $tag.$separator.str_pad((string) $n, 2, '0', STR_PAD_LEFT);
     }
 
     /**
