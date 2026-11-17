@@ -53,8 +53,18 @@
                             <td>{{ $selection->subBidang?->name ?? '—' }}</td>
                             <td class="mac-text-sm">{{ $selection->pengelasan->pluck('name')->join(', ') ?: '—' }}</td>
                             <td class="mac-text-sm">{{ $selection->produks->pluck('name')->join(', ') ?: '—' }}</td>
-                            <td class="text-end">
-                                <form method="POST"
+                            <td class="text-end text-nowrap">
+                                @unless($selection->is_primary)
+                                    <form method="POST" class="d-inline"
+                                          action="{{ route('admin.companies.kraf.primary', [$company, $selection]) }}">
+                                        @csrf
+                                        @method('PUT')
+                                        <button type="submit" class="mac-action-btn" title="Make primary">
+                                            <i class="bi bi-star"></i>
+                                        </button>
+                                    </form>
+                                @endunless
+                                <form method="POST" class="d-inline"
                                       action="{{ route('admin.companies.kraf.destroy', [$company, $selection]) }}">
                                     @csrf
                                     @method('DELETE')
@@ -107,12 +117,6 @@
                 <div class="kraf-ticks"></div>
             </fieldset>
 
-            <div class="col-12">
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="is_primary" name="is_primary" value="1">
-                    <label class="form-check-label mac-text-sm" for="is_primary">Make this the primary category</label>
-                </div>
-            </div>
         </div>
     </form>
 </div>

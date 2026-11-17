@@ -171,6 +171,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('companies/{company}', [CompanyController::class, 'destroy'])->name('companies.destroy');
 
         Route::post('companies/{company}/kraf', [CompanyController::class, 'storeKraf'])->name('companies.kraf.store');
+        Route::put('companies/{company}/kraf/{selection}/primary', [CompanyController::class, 'makeKrafPrimary'])
+            ->name('companies.kraf.primary');
         Route::delete('companies/{company}/kraf/{selection}', [CompanyController::class, 'destroyKraf'])
             ->name('companies.kraf.destroy');
         Route::put('companies/{company}/kraf-code', [CompanyController::class, 'updateKrafCode'])
@@ -211,6 +213,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('kraf-codes/{code}', [SettingController::class, 'destroyKrafCode'])->name('kraf-codes.destroy');
 
             Route::get('kraf-hierarchy', [SettingController::class, 'krafHierarchy'])->name('kraf-hierarchy');
+            Route::get('kraf-hierarchy/{category}/companies', [SettingController::class, 'krafHierarchyCompanies'])
+                ->name('kraf-hierarchy.companies');
+            Route::delete('kraf-hierarchy/{category}/companies', [SettingController::class, 'resetCategoryKraf'])
+                ->name('kraf-hierarchy.companies.reset-all');
+            Route::delete('kraf-hierarchy/{category}/companies/{company}', [SettingController::class, 'resetCompanyKraf'])
+                ->name('kraf-hierarchy.companies.reset');
             Route::post('kraf-hierarchy/{category}/sub', [SettingController::class, 'storeSubBidang'])
                 ->name('kraf-hierarchy.sub.store');
             Route::delete('kraf-hierarchy/sub/{subBidang}', [SettingController::class, 'destroySubBidang'])
