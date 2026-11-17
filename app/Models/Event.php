@@ -84,6 +84,20 @@ class Event extends Model
     ];
 
     /**
+     * The statuses a visitor or participant may see on the public site.
+     * Draft is not public to anyone; Unpublished (`closed`) is hidden from the
+     * public but a signed-in admin can still open its page (HomeController).
+     * Before 2026-11-16 only Draft was hidden, so an event the office had
+     * unpublished stayed listed and open (K10).
+     */
+    public const PUBLIC_STATUSES = ['open', 'completed'];
+
+    public function isPublic(): bool
+    {
+        return in_array($this->status, self::PUBLIC_STATUSES, true);
+    }
+
+    /**
      * The stages a lot draw goes through.
      *
      * `polling` reads as "Open" and `completed` as "End" because that is what the

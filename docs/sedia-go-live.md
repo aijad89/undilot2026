@@ -13,7 +13,7 @@ yang belum siap, dan 5 pepijat sederhana yang masih terbuka.
 | Kategori | Jumlah | Status |
 |---|---|---|
 | 🔴 Penghalang go-live | 6 | 0 selesai |
-| 🐞 Pepijat sederhana (K04–K10) | 7 | 6 selesai (K04–K09); K10 menunggu keputusan pejabat |
+| 🐞 Pepijat sederhana (K04–K10) | 7 | **7 selesai** (K04–K08 PR #1, K09 PR #2, K10 belum push) |
 | 🟡 Patut dibuat | 5 | 0 selesai |
 | 🟢 Selepas go-live | 18 pepijat rendah | — |
 
@@ -84,7 +84,7 @@ Lihat seksyen 2. Semua K04–K08 mesti dibaiki sebelum go-live.
 
 - [x] K04–K08 dibaiki 2026-11-16 (PR #1)
 - [x] K09 dibaiki 2026-11-16 (belum merge)
-- [ ] K10 (perlu keputusan pejabat: adakah *Unpublished* bermaksud sembunyi dari awam?)
+- [x] K10 dibaiki 2026-11-16 (belum push)
 
 ### B6. Tamatkan peraturan "satu baseline migration" pada hari data sebenar dimasukkan
 Sekarang perubahan skema dibuat dengan mengedit
@@ -166,7 +166,7 @@ pembaikan sementara → ujian gagal → pulihkan), mengikut peraturan `CLAUDE.md
 - **Kes ujian:** TC-007 · *Keutamaan: rendah dalam kesan, tetapi mengelirukan*
 
 ### K10 — Acara *Unpublished* masih di laman awam
-- [ ] **Dibaiki**
+- [x] **Dibaiki** 2026-11-16 (belum push) — keputusan pemilik: Unpublished tidak boleh dibuka oleh pengguna, hanya admin. `Event::PUBLIC_STATUSES` = open, completed; senarai awam menyorok Unpublished untuk semua; halaman acara 404 kecuali admin yang log masuk (dengan sepanduk). Papan pemuka dan halaman lot peserta sendiri tidak terjejas. Ujian: `AnUnpublishedEventIsHiddenFromThePublicTest`.
 - **Apa berlaku:** Hanya acara Draf disembunyikan dari `/` dan `/events/{id}`;
   acara Unpublished (`status = closed`) masih disenaraikan dan boleh dibuka.
 - **Kod:** `HomeController::index()`, `show()`.
@@ -242,3 +242,4 @@ yang sudah dibuang (laporan, pengumuman, permohonan sertai) — sahkan dan tutup
 | 2026-11-16 | Penilaian awal; pengawal seeder demo + `migrate:fresh` di pelayan (belum commit) | — | — |
 | 2026-11-16 | K04–K08 dibaiki, 22 ujian baharu, setiap satu dibuktikan menggigit. Suite: 479 lulus, 21 gagal (fixture lama sahaja) | PR #1 | — |
 | 2026-11-16 | K09 dibaiki; label kod kraf pada slip dibetulkan; `.env.example` dibersihkan | PR #2 | — |
+| 2026-11-16 | K10 dibaiki; IC pada slip di belakang suis `SLIP_SHOWS_IC` (lalai **on** — IC dicetak, keputusan pemilik) | belum push | — |

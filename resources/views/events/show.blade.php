@@ -77,6 +77,14 @@
 <div class="ev-page">
     <a href="{{ route('home') }}" class="evd-back"><i class="bi bi-arrow-left" aria-hidden="true"></i> All events</a>
 
+    @if($adminPreview ?? false)
+        {{-- Only an admin reaches an Unpublished event's page (HomeController::show). --}}
+        <div class="alert alert-warning" role="status">
+            <i class="bi bi-eye-slash" aria-hidden="true"></i>
+            <strong>Unpublished.</strong> This event is hidden from the public site. You can see it because you are signed in as an admin.
+        </div>
+    @endif
+
     @if($event->banner_url)
         <img class="evd-banner" src="{{ $event->banner_url }}" alt="">
     @endif

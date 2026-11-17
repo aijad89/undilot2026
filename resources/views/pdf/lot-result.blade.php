@@ -190,10 +190,9 @@
      slip to a person in one beep. The short code beneath is the head of the same
      hash, for when no scanner is to hand.
 
-     What this is NOT is a way of keeping the IC off the slip: the Participant
-     Information table below prints it in full, a few centimetres down. Whoever
-     holds this sheet already has the number. The hash is a lookup key here, not
-     a mask — see LotDrawController::slip(). --}}
+     The IC itself is printed unless SLIP_SHOWS_IC is false (on by default).
+     When it is printed, the hash is a lookup key, not a mask: the
+     Participant Information table prints the number a few centimetres down. --}}
 <div class="qr-box no-break">
     @if($qrDataUri)
         <img src="{{ $qrDataUri }}" width="96" height="96" alt="">
@@ -215,10 +214,13 @@
             <td>Full Name</td>
             <td>{{ $user->name }}</td>
         </tr>
+        {{-- Shown by default; SLIP_SHOWS_IC=false in .env hides it (config app.slip_shows_ic). --}}
+        @if(config('app.slip_shows_ic'))
         <tr>
             <td>IC Number</td>
             <td>{{ $user->ic_number ?? '—' }}</td>
         </tr>
+        @endif
         @if($registration->company)
         <tr>
             <td>Company Name</td>
