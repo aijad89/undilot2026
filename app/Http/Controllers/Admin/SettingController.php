@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditTrail;
+use App\Models\Company;
+use App\Models\CompanyKraf;
 use App\Models\Event;
 use App\Models\KrafBidang;
 use App\Models\KrafPengelasan;
@@ -351,25 +353,125 @@ class SettingController extends Controller
         ]);
     }
 
+    /**
+     * The companies that picked this category, narrowed by sub-category,
+     * classification and product. All three filters must hold on the SAME
+     * selection: a company with Batik/canting and Songket/benang emas does not
+     * match "Batik + benang emas".
+     */
+    public function krafHierarchyCompanies(Request $request, KrafBidang $category)
+    {
+        $this->abortUnlessCategory($category);
+
+        $category->load(['subBidangs.pengelasan', 'subBidangs.produks']);
+
+        $filters = $this->companyFilters($request);
+        $matches = $this->selectionsMatching($category, $filters);
+
+        $companies = Company::whereHas('krafSelections', $matches)
+            ->with(['user', 'krafSelections' => fn ($q) => $q->where('bidang_id', $category->id)
+                ->with(['subBidang', 'pengelasan', 'produks'])])
+            ->orderBy('name')
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('admin.settings.kraf-hierarchy-companies', compact('category', 'companies', 'filters'));
+    }
+
+    /**
+     * Clears one company's selections under this category. The company stays;
+     * its ticked classifications and products go with each selection, by cascade.
+     */
+    public function resetCompanyKraf(Request $request, KrafBidang $category, Company $company)
+    {
+        $this->abortUnlessCategory($category);
+
+        $count = $this->deleteSelections(
+            $company->krafSelections()->where('bidang_id', $category->id)
+        );
+
+        return back()->with('success', "{$company->name}: {$count} craft selection(s) under {$category->display_name} removed.");
+    }
+
+    /**
+     * Clears every selection the current filters match — all of the category's
+     * when no filter is set. Only the matching selections go, so a company with
+     * Batik and Songket loses only Batik when the filter is Batik.
+     */
+    public function resetCategoryKraf(Request $request, KrafBidang $category)
+    {
+        $this->abortUnlessCategory($category);
+
+        $filters = $this->companyFilters($request);
+        $query = CompanyKraf::query();
+        ($this->selectionsMatching($category, $filters))($query);
+
+        $count = $this->deleteSelections($query);
+        $message = "{$count} craft selection(s) under {$category->display_name} removed.";
+
+        // The same button sits on the category's card in Craft Hierarchy.
+        if ($request->input('from') === 'hierarchy') {
+            return $this->backTo("category-{$category->id}")->with('success', $message);
+        }
+
+        return redirect()->route('admin.settings.kraf-hierarchy.companies', $category)->with('success', $message);
+    }
+
+    private function companyFilters(Request $request): array
+    {
+        return $request->validate([
+            'sub' => ['nullable', 'integer'],
+            'pengelasan' => ['nullable', 'integer'],
+            'produk' => ['nullable', 'integer'],
+        ]);
+    }
+
+    /** All three filters hold on ONE selection together. */
+    private function selectionsMatching(KrafBidang $category, array $filters): \Closure
+    {
+        return function ($q) use ($category, $filters) {
+            $q->where('bidang_id', $category->id)
+                ->when($filters['sub'] ?? null, fn ($q, $id) => $q->where('sub_bidang_id', $id))
+                ->when($filters['pengelasan'] ?? null, fn ($q, $id) => $q->whereHas('pengelasan', fn ($q) => $q->where('kraf_pengelasan.id', $id)))
+                ->when($filters['produk'] ?? null, fn ($q, $id) => $q->whereHas('produks', fn ($q) => $q->where('kraf_produks.id', $id)));
+        };
+    }
+
+    /** One model delete per row, so Auditable writes a line for each. */
+    private function deleteSelections($query): int
+    {
+        return DB::transaction(function () use ($query) {
+            $selections = $query->get();
+            $selections->each->delete();
+
+            return $selections->count();
+        });
+    }
+
     public function storeSubBidang(Request $request, KrafBidang $category)
     {
         $this->abortUnlessCategory($category);
 
+        $split = $request->boolean('split');
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            // Classifications and products may come on the same row, comma-separated,
-            // or be added under the sub-category after. Both optional. No craft code:
-            // that is set per event on the draw list.
-            'classification' => ['nullable', 'string', 'max:2000'],
-            'products' => ['nullable', 'string', 'max:2000'],
-        ]);
+            // Classifications and products may come on the same row (several when
+            // split at commas), or be added under the sub-category after. Both
+            // optional. No craft code: that is set per event on the draw list.
+            'classification' => ['nullable', 'string', 'max:5000'],
+            'products' => ['nullable', 'string', 'max:5000'],
+        ], ['name.max' => 'Sub-category is too long: :max characters at most.']);
 
-        DB::transaction(function () use ($category, $data) {
+        $classifications = $this->names($data['classification'] ?? '', $split);
+        $products = $this->names($data['products'] ?? '', $split);
+        if ($error = $this->tooLong($classifications, 'Classification') ?? $this->tooLong($products, 'Product')) {
+            return $this->backTo("category-{$category->id}")->with('error', $error);
+        }
+
+        DB::transaction(function () use ($category, $data, $classifications, $products) {
             $sub = $category->subBidangs()->create(Arr::only($data, 'name'));
-            $sub->pengelasan()->createMany(
-                $this->splitNames($data['classification'] ?? '')->map(fn ($name) => ['name' => $name])
-            );
-            $this->createProduks($sub, $this->splitNames($data['products'] ?? ''));
+            $sub->pengelasan()->createMany($classifications->map(fn ($name) => ['name' => $name]));
+            $this->createProduks($sub, $products);
         });
 
         return $this->backTo("category-{$category->id}")->with('success', 'Sub-category added.');
@@ -377,27 +479,101 @@ class SettingController extends Controller
 
     public function storePengelasan(Request $request, KrafSubBidang $subBidang)
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:2000']]);
+        $data = $request->validate(['name' => ['required', 'string', 'max:5000']]);
+
+        $names = $this->names($data['name'], $request->boolean('split'));
+        if ($error = $this->tooLong($names, 'Classification')) {
+            return $this->backTo("category-{$subBidang->bidang_id}")->with('error', $error);
+        }
 
         // Names already under this sub-category are skipped, not doubled.
         $have = $subBidang->pengelasan()->pluck('name')->map(fn ($n) => mb_strtolower($n));
-        $names = $this->splitNames($data['name'])
-            ->reject(fn ($name) => $have->contains(mb_strtolower($name)));
+        $names = $names->reject(fn ($name) => $have->contains(mb_strtolower($name)));
 
         $subBidang->pengelasan()->createMany($names->map(fn ($name) => ['name' => $name]));
 
         return $this->backTo("category-{$subBidang->bidang_id}")->with('success', $names->isEmpty() ? 'Already there.' : 'Classification added.');
     }
 
-    /** "A, B ,, a" → ["A", "B"]: split on commas, trimmed, blanks and repeats dropped. */
-    private function splitNames(string $input)
+    /**
+     * The names typed in one field. By default the whole field is ONE name, commas
+     * included: the book's names hold commas ("Batik canting, batik lukis"). With
+     * "Split at commas" ticked, "A, B ,, a" → ["A", "B"]: trimmed, blanks and
+     * repeats dropped. Length is checked after, per name, by tooLong().
+     *
+     * A comma inside brackets does not split, and a piece wrapped whole in
+     * brackets loses them: "(A - x, y),(B - z)" → ["A - x, y", "B - z"], while
+     * "Pakaian (kain, baju), cenderamata" → ["Pakaian (kain, baju)", "cenderamata"].
+     */
+    private function names(string $input, bool $split)
     {
-        return collect(explode(',', $input))
+        // Two or more bracket groups and nothing else, "(A, b)(C, d)" or "(A, b), (C, d)",
+        // can only mean a list, so it splits with the box unticked too.
+        $groups = collect($this->splitOutsideBrackets($input))->map(fn ($p) => trim($p))->filter();
+        $split = $split || ($groups->count() > 1 && $groups->every(fn ($p) => $this->wrappedWhole($p)));
+
+        return collect($split ? $this->splitOutsideBrackets($input) : [$input])
             ->map(fn ($name) => trim($name))
+            ->map(fn ($name) => $split && $this->wrappedWhole($name) ? trim(mb_substr($name, 1, -1)) : $name)
             ->filter()
-            ->filter(fn ($name) => mb_strlen($name) <= 255)
             ->unique(fn ($name) => mb_strtolower($name))
             ->values();
+    }
+
+    /**
+     * Split at commas that are not inside ( ), and between back-to-back bracket
+     * groups: "(A, b)(C)" → ["(A, b)", "(C)"]. "(a) b (c)" stays one piece.
+     */
+    private function splitOutsideBrackets(string $input): array
+    {
+        $pieces = [''];
+        $depth = 0;
+        foreach (mb_str_split($input) as $ch) {
+            $current = trim($pieces[array_key_last($pieces)]);
+            if ($ch === '(' && $depth === 0 && $current !== '' && $this->wrappedWhole($current)) {
+                $pieces[] = '';
+            }
+            $depth += match ($ch) { '(' => 1, ')' => $depth > 0 ? -1 : 0, default => 0 };
+            if ($ch === ',' && $depth === 0) {
+                $pieces[] = '';
+            } else {
+                $pieces[array_key_last($pieces)] .= $ch;
+            }
+        }
+
+        return $pieces;
+    }
+
+    /** "(…)" whose first bracket closes at the very end — not "(a) b (c)". */
+    private function wrappedWhole(string $name): bool
+    {
+        if (! str_starts_with($name, '(') || ! str_ends_with($name, ')')) {
+            return false;
+        }
+        $depth = 0;
+        foreach (mb_str_split($name) as $i => $ch) {
+            $depth += match ($ch) { '(' => 1, ')' => -1, default => 0 };
+            if ($depth === 0) {
+                return $i === mb_strlen($name) - 1;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Each name must fit its column (255). Checked per name, after splitting, so a
+     * long list of short names passes and one long name says which it is. Nothing
+     * is saved when one is too long.
+     */
+    private function tooLong($names, string $what): ?string
+    {
+        $long = $names->first(fn ($name) => mb_strlen($name) > 255);
+
+        return $long === null ? null : sprintf(
+            '%s is too long (%d characters, 255 at most), nothing was added: "%s…"',
+            $what, mb_strlen($long), mb_substr($long, 0, 60)
+        );
     }
 
     /**
@@ -448,12 +624,16 @@ class SettingController extends Controller
 
     public function storeProduk(Request $request, KrafSubBidang $subBidang)
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:2000']]);
+        $data = $request->validate(['name' => ['required', 'string', 'max:5000']]);
 
-        // Comma-separated, like classifications; names already in the sub-category are skipped.
+        $names = $this->names($data['name'], $request->boolean('split'));
+        if ($error = $this->tooLong($names, 'Product')) {
+            return $this->backTo("category-{$subBidang->bidang_id}")->with('error', $error);
+        }
+
+        // Like classifications; names already in the sub-category are skipped.
         $have = $subBidang->produks()->pluck('name')->map(fn ($n) => mb_strtolower($n));
-        $names = $this->splitNames($data['name'])
-            ->reject(fn ($name) => $have->contains(mb_strtolower($name)));
+        $names = $names->reject(fn ($name) => $have->contains(mb_strtolower($name)));
 
         $this->createProduks($subBidang, $names);
 

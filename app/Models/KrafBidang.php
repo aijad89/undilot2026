@@ -62,6 +62,16 @@ class KrafBidang extends Model
         return $query->where('is_active', true);
     }
 
+    /**
+     * The name as people read it: TEKSTIL → "Tekstil", HASIL RIMBA → "Hasil rimba".
+     * Display only — the stored name stays as it is, because code matches
+     * categories by name (KrafPicker::MULTI_SUB_CATEGORY = 'HASIL LOGAM').
+     */
+    public function getDisplayNameAttribute(): string
+    {
+        return \Illuminate\Support\Str::ucfirst(mb_strtolower($this->name));
+    }
+
     public function subBidangs()
     {
         return $this->hasMany(KrafSubBidang::class, 'bidang_id');

@@ -76,24 +76,49 @@ it('will not delete a classification a company has ticked', function () {
     expect($canting->fresh())->not->toBeNull()->and($blok->fresh())->toBeNull();
 });
 
-it('takes several classifications at once, comma-separated, without doubling any', function () {
+/** A comma belongs to the name: the book's classifications hold commas. */
+it('keeps a classification with commas in it as one, without doubling it', function () {
     $category = KrafBidang::factory()->create();
     $admin = superAdmin();
 
     $this->actingAs($admin, 'admin')->post(route('admin.settings.kraf-hierarchy.sub.store', $category), [
         'name' => 'Batik',
-        'classification' => 'Batik Canting / Batik Lukis, Batik Blok / Batik Terap ,, batik canting / batik lukis',
+        'classification' => '  Batik canting, batik lukis ',
     ])->assertSessionHas('success');
 
     $sub = KrafSubBidang::where('name', 'Batik')->sole();
-    expect($sub->pengelasan()->pluck('name')->all())->toBe(['Batik Canting / Batik Lukis', 'Batik Blok / Batik Terap']);
+    expect($sub->pengelasan()->pluck('name')->all())->toBe(['Batik canting, batik lukis']);
 
     $this->actingAs($admin, 'admin')->post(route('admin.settings.kraf-hierarchy.pengelasan.store', $sub), [
-        'name' => 'Batik Blok / Batik Terap, Batik Skrin',
+        'name' => 'BATIK CANTING, BATIK LUKIS',
+    ])->assertSessionHas('success', 'Already there.');
+
+    $this->actingAs($admin, 'admin')->post(route('admin.settings.kraf-hierarchy.pengelasan.store', $sub), [
+        'name' => 'Batik skrin, batik stensil, batik sutera saring (silk screen)',
     ])->assertSessionHas('success');
 
     expect($sub->pengelasan()->pluck('name')->all())
-        ->toBe(['Batik Canting / Batik Lukis', 'Batik Blok / Batik Terap', 'Batik Skrin']);
+        ->toBe(['Batik canting, batik lukis', 'Batik skrin, batik stensil, batik sutera saring (silk screen)']);
+});
+
+it('splits classifications at commas only when asked, without doubling any', function () {
+    $category = KrafBidang::factory()->create();
+    $admin = superAdmin();
+
+    $this->actingAs($admin, 'admin')->post(route('admin.settings.kraf-hierarchy.sub.store', $category), [
+        'name' => 'Batik', 'split' => '1',
+        'classification' => 'Batik blok/terap, Batik ikat celup ,, batik blok/terap',
+    ])->assertSessionHas('success');
+
+    $sub = KrafSubBidang::where('name', 'Batik')->sole();
+    expect($sub->pengelasan()->pluck('name')->all())->toBe(['Batik blok/terap', 'Batik ikat celup']);
+
+    $this->actingAs($admin, 'admin')->post(route('admin.settings.kraf-hierarchy.pengelasan.store', $sub), [
+        'name' => 'Batik ikat celup, Batik skrin', 'split' => '1',
+    ])->assertSessionHas('success');
+
+    expect($sub->pengelasan()->pluck('name')->all())
+        ->toBe(['Batik blok/terap', 'Batik ikat celup', 'Batik skrin']);
 });
 
 it('comes back to the card it was sent from, with the message in it', function () {

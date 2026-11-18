@@ -154,10 +154,10 @@ it('shows the coding sheet on one screen and the hierarchy on the other', functi
     $this->actingAs($admin, 'admin')
         ->get(route('admin.settings.kraf-hierarchy'))
         ->assertOk()
-        ->assertSee('TEKSTIL')
+        ->assertSee('Tekstil')
         // The coded row appears only as something a sub-category may be MAPPED to,
         // never as a category of its own.
-        ->assertDontSee('<h3 class="mac-card-title">TENUNAN</h3>', false);
+        ->assertDontSee('<h3 class="mac-card-title">Tenunan</h3>', false);
 });
 
 it('counts only the admin own zone on the event list', function () {

@@ -22,7 +22,25 @@
 
     @forelse($categories as $category)
         <div class="mac-card mac-card-padded mb-3" id="category-{{ $category->id }}" style="scroll-margin-top: 80px">
-            <h3 class="mac-card-title">{{ $category->name }}</h3>
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <h3 class="mac-card-title">{{ $category->display_name }}</h3>
+                <div class="d-flex gap-2">
+                    <a href="{{ route('admin.settings.kraf-hierarchy.companies', $category) }}" class="mac-btn-secondary">
+                        <i class="bi bi-building me-1" aria-hidden="true"></i> Companies
+                    </a>
+
+                    {{-- Clears every company's selections under this category; the companies stay. --}}
+                    <form method="POST" action="{{ route('admin.settings.kraf-hierarchy.companies.reset-all', $category) }}">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="from" value="hierarchy">
+                        <button type="submit" class="mac-btn-secondary"
+                                data-confirm="Remove every {{ $category->display_name }} craft selection from all companies? The companies stay.">
+                            <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i> Reset
+                        </button>
+                    </form>
+                </div>
+            </div>
 
             @if(session('anchor') === "category-{$category->id}")
                 @include('partials.admin-alerts')
@@ -44,8 +62,11 @@
                                           action="{{ route('admin.settings.kraf-hierarchy.pengelasan.store', $sub) }}">
                                         @csrf
                                         <input type="text" name="name" class="mac-form-control mac-text-sm"
-                                               placeholder="Add classifications, comma-separated"
+                                               placeholder="Add a classification"
                                                aria-label="Add a classification under {{ $sub->name }}" required>
+                                        <label class="kh-split" title="Tick to add several at once, separated by commas. A name with its own commas goes in brackets: (Hiasan - kotak hadiah, rantai kunci)">
+                                            <input type="checkbox" name="split" value="1"> Split at ,
+                                        </label>
                                         <button type="submit" class="mac-action-btn" title="Add">
                                             <i class="bi bi-plus-lg"></i>
                                         </button>
@@ -93,8 +114,11 @@
                                           action="{{ route('admin.settings.kraf-hierarchy.produk.store', $sub) }}">
                                         @csrf
                                         <input type="text" name="name" class="mac-form-control mac-text-sm"
-                                               placeholder="Add products, comma-separated"
+                                               placeholder="Add a product"
                                                aria-label="Add a product under {{ $sub->name }}" required>
+                                        <label class="kh-split" title="Tick to add several at once, separated by commas. A name with its own commas goes in brackets: (Hiasan - kotak hadiah, rantai kunci)">
+                                            <input type="checkbox" name="split" value="1"> Split at ,
+                                        </label>
                                         <button type="submit" class="mac-action-btn" title="Add">
                                             <i class="bi bi-plus-lg"></i>
                                         </button>
@@ -145,20 +169,23 @@
                 @csrf
                 <div class="col-md-3">
                     <input type="text" name="name" class="mac-form-control" placeholder="New sub-category"
-                           aria-label="New sub-category under {{ $category->name }}" required>
+                           aria-label="New sub-category under {{ $category->display_name }}" required>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <input type="text" name="classification" class="mac-form-control"
-                           placeholder="Classifications (optional)"
-                           aria-label="Classifications for the new sub-category under {{ $category->name }}, comma-separated">
+                           placeholder="Classification (optional)"
+                           aria-label="Classification for the new sub-category under {{ $category->display_name }}">
                 </div>
                 <div class="col-md-3">
                     <input type="text" name="products" class="mac-form-control"
-                           placeholder="Products (optional)"
-                           aria-label="Products for the new sub-category under {{ $category->name }}, comma-separated">
+                           placeholder="Product (optional)"
+                           aria-label="Product for the new sub-category under {{ $category->display_name }}">
                 </div>
-                <div class="col-md-2">
-                    <button type="submit" class="mac-btn-secondary w-100">Add</button>
+                <div class="col-md-3 d-flex gap-2 align-items-center">
+                    <label class="kh-split" title="Tick to add several classifications and products at once, separated by commas. A name with its own commas goes in brackets: (Hiasan - kotak hadiah, rantai kunci)">
+                        <input type="checkbox" name="split" value="1"> Split at ,
+                    </label>
+                    <button type="submit" class="mac-btn-secondary flex-grow-1">Add</button>
                 </div>
             </form>
 
@@ -203,13 +230,19 @@
     <style>
         /* Inside a sub-category row: one line per list, a fixed label column, tags flowing beside it. */
         .kh-sub-label { width: 160px; }
-        .kh-lines { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+        .kh-lines { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; text-align: left; }
         .kh-line { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px; align-items: start; }
         .kh-line + .kh-line { border-top: 1px dashed var(--ui-border); padding-top: 10px; }
         .kh-line-label { padding-top: 6px; font-weight: 600; color: var(--ui-text-2); }
         .kh-line-controls { display: flex; gap: 4px; max-width: 520px; }
+        .kh-split { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 0.75rem; color: var(--ui-text-2); cursor: pointer; margin: 0; }
+        /* Under the field, so the field keeps its width. */
+        .kh-line-controls form { flex-wrap: wrap; }
+        .kh-line-controls form > input[type=text] { flex: 1 1 0; min-width: 0; }
+        .kh-line-controls .kh-split { order: 3; flex-basis: 100%; }
         .kh-line-items { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
-        .kh-line-items > .mac-badge { min-height: 32px; }
+        /* A long name ("Batik canting, batik lukis, …") wraps inside its tag instead of running past the card's edge. */
+        .kh-line-items > .mac-badge { min-height: 32px; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
         @media (max-width: 640px) { .kh-line { grid-template-columns: 1fr; gap: 4px; } .kh-sub-label { width: auto; } }
     </style>
 </div>

@@ -258,7 +258,6 @@ class CompanyController extends Controller
             'bidang_id' => ['required', Rule::exists('kraf_bidangs', 'id')->whereNull('code')],
             'sub_bidang_id' => ['required', 'array', 'min:1'],
             'sub_bidang_id.*' => ['required', 'integer'],
-            'is_primary' => ['nullable', 'boolean'],
             'pengelasan_id' => ['nullable', 'array'],
             'pengelasan_id.*' => ['integer'],
             'produk_id' => ['nullable', 'array'],
@@ -288,7 +287,8 @@ class CompanyController extends Controller
 
         $tickedProduks = KrafProduk::whereIn('id', $data['produk_id'] ?? [])->get()->groupBy('sub_bidang_id');
 
-        $makePrimary = $request->boolean('is_primary') || $company->krafSelections()->doesntExist();
+        // The first selection is the primary; after that, the star on a row changes it.
+        $makePrimary = $company->krafSelections()->doesntExist();
 
         DB::transaction(function () use ($company, $category, $subIds, $makePrimary, $ticked, $tickedProduks) {
             if ($makePrimary) {
@@ -311,6 +311,22 @@ class CompanyController extends Controller
         });
 
         return $this->backTo('craft-categories')->with('success', 'Craft selection added.');
+    }
+
+    /** One primary per company: this one on, any other off. Through the model, so it is audited. */
+    public function makeKrafPrimary(Request $request, Company $company, CompanyKraf $selection)
+    {
+        $this->authorizeScope($request, $company);
+
+        abort_unless($selection->company_id === $company->id, 404);
+
+        DB::transaction(function () use ($company, $selection) {
+            $company->krafSelections()->where('is_primary', true)->whereKeyNot($selection->id)->get()
+                ->each->update(['is_primary' => false]);
+            $selection->update(['is_primary' => true]);
+        });
+
+        return $this->backTo('craft-categories')->with('success', 'Primary category changed.');
     }
 
     public function destroyKraf(Request $request, Company $company, CompanyKraf $selection)
