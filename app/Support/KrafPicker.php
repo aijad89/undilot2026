@@ -92,4 +92,22 @@ class KrafPicker
     {
         return KrafBidang::codes()->active()->orderBy('bil')->get(['id', 'name', 'code']);
     }
+
+    /**
+     * The codes offered to ONE company: only those of the craft categories it has
+     * picked (a code's `name` is its category, TEKSTIL, HASIL RIMBA…). A company
+     * with no category picked yet sees every code, so a code can still be set
+     * before the categories are.
+     *
+     * @return \Illuminate\Support\Collection<int, KrafBidang>
+     */
+    public static function codesFor(\App\Models\Company $company)
+    {
+        $categories = KrafBidang::whereIn('id', $company->krafSelections()->pluck('bidang_id'))
+            ->pluck('name')->map(fn ($n) => mb_strtolower($n));
+
+        return $categories->isEmpty()
+            ? self::codes()
+            : self::codes()->filter(fn ($c) => $categories->contains(mb_strtolower($c->name)))->values();
+    }
 }
