@@ -44,3 +44,20 @@ it('loads the shipped hierarchy file in full', function () {
     // sub-categories, classifications, products as entered 2026-11-18
     expect([KrafSubBidang::count(), \App\Models\KrafPengelasan::count(), \App\Models\KrafProduk::count()])->toBe([35, 76, 138]);
 });
+
+it('is loaded by db:seed on a server, with no demo entries beside it', function () {
+    foreach (['ADMIN_SEED_USERNAME' => 'superadmin', 'ADMIN_SEED_PASSWORD' => 'not-a-real-one'] as $k => $v) {
+        putenv("$k=$v");
+        $_ENV[$k] = $_SERVER[$k] = $v;
+    }
+    app()['env'] = 'production';
+
+    $this->artisan('db:seed', ['--force' => true])->assertSuccessful();
+
+    expect([KrafSubBidang::count(), \App\Models\KrafPengelasan::count(), \App\Models\KrafProduk::count()])->toBe([35, 76, 138]);
+})->after(function () {
+    foreach (['ADMIN_SEED_USERNAME', 'ADMIN_SEED_PASSWORD'] as $k) {
+        putenv($k);
+        unset($_ENV[$k], $_SERVER[$k]);
+    }
+});

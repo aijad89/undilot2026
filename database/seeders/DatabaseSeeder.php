@@ -37,6 +37,13 @@ class DatabaseSeeder extends Seeder
         // match on `code`, categories on name.
         $this->call(KrafCodeSeeder::class);
 
+        // Sub-categories, classifications and products under those categories,
+        // from the reference file. Adds only, so re-running is safe.
+        if (\Illuminate\Support\Facades\Artisan::call('kraf:import-hierarchy', ['file' => database_path('data/hierarki-kraf.csv')]) !== 0) {
+            throw new \RuntimeException('Craft hierarchy did not load: '.\Illuminate\Support\Facades\Artisan::output());
+        }
+        $this->command?->info(trim(\Illuminate\Support\Facades\Artisan::output()));
+
         if (! DevEnvironment::here()) {
             $this->command?->newLine();
             $this->command?->warn('Environment "'.app()->environment().'": reference data only. No demo data was planted.');
