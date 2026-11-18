@@ -42,10 +42,14 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($picker['selections'] as $selection)
+                    @foreach($picker['selections'] as $i => $selection)
                         <tr>
                             <td>
-                                {{ $selection->bidang?->name ?? '—' }}
+                                {{-- HASIL LOGAM is one row per sub-category: name the category
+                                     once, on the first of its rows, as the book's merged box does. --}}
+                                @unless($i > 0 && $picker['selections'][$i - 1]->bidang_id === $selection->bidang_id)
+                                    {{ $selection->bidang?->name ?? '—' }}
+                                @endunless
                                 @if($selection->is_primary)
                                     <span class="mac-badge mac-badge-blue ms-1">Primary</span>
                                 @endif

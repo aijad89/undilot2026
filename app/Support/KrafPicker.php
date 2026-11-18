@@ -56,7 +56,10 @@ class KrafPicker
         $selectedSubBidangId = $editSelection?->sub_bidang_id;
 
         return [
-            'selections' => $company->krafSelections()->with(['bidang', 'subBidang', 'pengelasan', 'produks'])->get(),
+            // One category's rows together (HASIL LOGAM is one row per sub-category),
+            // the primary's category first: the table names each category once.
+            'selections' => $company->krafSelections()->with(['bidang', 'subBidang', 'pengelasan', 'produks'])->get()
+                ->groupBy('bidang_id')->flatten(1)->values(),
 
             // Classifications and products by sub-category, for the tick boxes under the picker.
             'pengelasanBySub' => \App\Models\KrafPengelasan::orderBy('id')->get(['id', 'sub_bidang_id', 'name'])
