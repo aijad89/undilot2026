@@ -47,6 +47,9 @@
 # NOT `/*.csv` — that anchors to the repo root and leaves every subfolder open.
 # A folder of exports is exactly how such a file reaches a public remote.
 *.csv
+# The one exception: the craft hierarchy reference list. No people in it —
+# categories, classifications and products only. Named exactly, never a folder.
+!/database/data/hierarki-kraf.csv
 
 # OS noise
 .DS_Store
