@@ -40,7 +40,8 @@ use Illuminate\Support\Str;
  */
 class BatikDrawSeeder extends LocalOnlySeeder
 {
-    private const DOMAIN = 'batik.test';
+    /** Every account this seeder makes has a community ID with this prefix. */
+    private const ID_PREFIX = 'BATIK-';
 
     private const EVENT = 'Pesta Batik Kebangsaan 2026';
 
@@ -107,7 +108,7 @@ class BatikDrawSeeder extends LocalOnlySeeder
         $this->command?->info(sprintf(
             '%s: %d companies, %d plots, %d on the draw list. Draw %s.',
             self::EVENT,
-            Company::whereHas('user', fn ($q) => $q->where('email', 'like', '%@'.self::DOMAIN))->count(),
+            Company::whereHas('user', fn ($q) => $q->where('community_id', 'like', self::ID_PREFIX.'%'))->count(),
             $event->plots()->count(),
             $event->registrations()->count(),
             $blocker ? "NOT ready: {$blocker}" : 'ready to open',
@@ -122,7 +123,7 @@ class BatikDrawSeeder extends LocalOnlySeeder
             $old->delete();
         }
 
-        $userIds = User::where('email', 'like', '%@'.self::DOMAIN)->pluck('id');
+        $userIds = User::where('community_id', 'like', self::ID_PREFIX.'%')->pluck('id');
         Company::whereIn('user_id', $userIds)->get()->each->delete();
         User::whereIn('id', $userIds)->delete();
     }
@@ -145,10 +146,10 @@ class BatikDrawSeeder extends LocalOnlySeeder
 
             $user = User::create([
                 'name' => $faker->name(),
-                'email' => sprintf('batik%03d@%s', $n, self::DOMAIN),
                 'password' => $password,
             ]);
             $user->forceFill([
+                'community_id' => sprintf('%s%03d', self::ID_PREFIX, $n),
                 'ic_number' => sprintf('%s-%s-%04d', $born->format('ymd'), self::BIRTH_STATE[$zone] ?? '14', 5000 + $n),
                 'phone' => sprintf('01%d-%07d', $faker->numberBetween(2, 9), $faker->numberBetween(1000000, 9999999)),
                 'is_active' => true,

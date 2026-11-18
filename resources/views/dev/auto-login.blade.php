@@ -19,7 +19,7 @@
                 border: 1px solid rgba(60,60,67,0.12); border-radius: 12px; padding: 12px 14px; }
         .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
         .card:focus-visible { outline: 2px solid #0066DD; outline-offset: 2px; }
-        .email { display: block; font-size: 0.83rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .who { display: block; font-size: 0.83rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .meta { display: block; font-size: 0.73rem; color: #6E6E73; margin-top: 2px; }
         .bar { display: flex; gap: 10px; align-items: center; font-size: 0.83rem; }
         .plain { font: inherit; font-size: 0.79rem; padding: 6px 14px; border-radius: 980px;
@@ -55,7 +55,7 @@
             <form method="POST" action="{{ route('dev.auto.admin', $admin) }}">
                 @csrf
                 <button type="submit" class="card">
-                    <span class="email">{{ $admin->email }}</span>
+                    <span class="who">{{ $admin->username }}</span>
                     <span class="meta">{{ \App\Models\Admin::ROLES[$admin->role] ?? $admin->role }}@if($admin->state) · {{ $admin->state }}@endif</span>
                 </button>
             </form>
@@ -70,7 +70,7 @@
             <form method="POST" action="{{ route('dev.auto.user', $user) }}">
                 @csrf
                 <button type="submit" class="card">
-                    <span class="email">{{ $user->email }}</span>
+                    <span class="who">{{ $user->community_id ?? '—' }}</span>
                     <span class="meta">{{ $user->company?->name ?? 'No company' }}@unless($user->is_active) · inactive @endunless</span>
                 </button>
             </form>

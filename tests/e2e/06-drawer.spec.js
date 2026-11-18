@@ -21,7 +21,7 @@ const PHONE = { width: 390, height: 844 };
 test('on a desk the menu is a rail that stays, and the button hides and shows it', async ({ page }) => {
     await page.setViewportSize(DESK);
     const errors = watchErrors(page);
-    await signInAs(page, 'tenun@e2e.test');
+    await signInAs(page, 'E2E-TENUN');
 
     const menu = page.getByRole('button', { name: 'Open menu' });
     const rail = page.locator('#apSidebar');
@@ -64,14 +64,14 @@ test('on a desk the menu is a rail that stays, and the button hides and shows it
     await Promise.all([page.waitForNavigation(), rail.getByRole('link', { name: 'Profile' }).click()]);
     await expect(page).toHaveURL(/\/profile$/);
     await expect(rail.getByRole('link', { name: 'Profile' })).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByRole('heading', { name: 'Change password' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your company' })).toBeVisible();
     expect(errors).toEqual([]);
 });
 
 test('on a phone the menu is a drawer: opened by the button, closed by Escape, a tap outside or its own button', async ({ page }) => {
     await page.setViewportSize(PHONE);
     const errors = watchErrors(page);
-    await signInAs(page, 'tenun@e2e.test');
+    await signInAs(page, 'E2E-TENUN');
 
     const menu = page.getByRole('button', { name: 'Open menu' });
     const drawer = page.locator('#apSidebar');

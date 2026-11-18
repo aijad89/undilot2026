@@ -18,11 +18,14 @@ class Admin extends Authenticatable
 
     protected $fillable = [
         'name',
-        'email',
+        'username',
         'password',
         'role',
         'state',
         'is_active',
+        // Set only by legacy:accounts (dev). Controllers pass validated arrays
+        // that never carry it.
+        'legacy_id',
     ];
 
     protected $hidden = [

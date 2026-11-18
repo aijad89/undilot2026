@@ -50,7 +50,7 @@ class EnforceUserIsActive
 
                 // withErrors, not with('error'): the login page shows only
                 // $errors and `status`, so a flashed `error` is never seen.
-                return redirect()->route('login')->withErrors(['email' => $user->is_active
+                return redirect()->route('login')->withErrors(['community_id' => $user->is_active
                     ? 'Your company has been deactivated. Please contact the administrator.'
                     : 'Your account has been deactivated. Please contact the administrator.']);
             }

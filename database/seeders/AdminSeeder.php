@@ -33,18 +33,18 @@ class AdminSeeder extends Seeder
 {
     public function run(): void
     {
-        $email = env('ADMIN_SEED_EMAIL');
+        $username = strtolower(trim((string) env('ADMIN_SEED_USERNAME')));
         $password = env('ADMIN_SEED_PASSWORD');
 
-        if (blank($email) || blank($password)) {
+        if (blank($username) || blank($password)) {
             throw new RuntimeException(
-                'AdminSeeder needs ADMIN_SEED_EMAIL and ADMIN_SEED_PASSWORD in .env. '
+                'AdminSeeder needs ADMIN_SEED_USERNAME and ADMIN_SEED_PASSWORD in .env. '
                 .'There is deliberately no default: a seeded password with a fallback '
                 .'value is a password in the git history.'
             );
         }
 
-        $existing = Admin::where('email', $email)->first();
+        $existing = Admin::where('username', $username)->first();
 
         if ($existing) {
             $existing->update([
@@ -52,20 +52,20 @@ class AdminSeeder extends Seeder
                 'role' => Admin::SUPER_ROLE,
             ]);
 
-            $this->command?->info("Admin {$email} already exists — name and role refreshed, password untouched.");
+            $this->command?->info("Admin {$username} already exists — name and role refreshed, password untouched.");
 
             return;
         }
 
         Admin::create([
             'name' => env('ADMIN_SEED_NAME', 'Super Admin'),
-            'email' => $email,
+            'username' => $username,
             // Hashed by the model's `password` => 'hashed' cast.
             'password' => $password,
             'role' => Admin::SUPER_ROLE,
             'state' => null,
         ]);
 
-        $this->command?->info("Created super admin {$email}.");
+        $this->command?->info("Created super admin {$username}.");
     }
 }

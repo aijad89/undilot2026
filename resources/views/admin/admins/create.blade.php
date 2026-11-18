@@ -16,7 +16,7 @@
 
     <div class="mac-header mb-4">
         <h2>New Admin</h2>
-        <p class="mac-muted mb-0">An account for the admin panel. They sign in with this email and password.</p>
+        <p class="mac-muted mb-0">An account for the admin panel. They sign in with this username and password.</p>
     </div>
 
     <form method="POST" action="{{ route('admin.admins.store') }}">

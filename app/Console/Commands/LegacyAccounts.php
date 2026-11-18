@@ -22,11 +22,15 @@ use Illuminate\Support\Str;
  *    becomes hq, and every zone that appears in the dump gets one state admin.
  *    That is an assignment for testing, not a migration of fact.
  *
- * 2. EMAIL AND PASSWORD. `upengawai` signed in with `loginname` and `usahawan`
- *    has no login at all, while `admins.email` and `users.email` are unique and
- *    required. Emails are built on `@legacy.test` — a reserved TLD that can
- *    never receive mail — and passwords are random, because /auto signs in
- *    without one. Nothing here is a credential usable off this machine.
+ * 2. PASSWORDS. `upengawai` signed in with `loginname`, which becomes the
+ *    admin's `username`; `usahawan` had no login at all (participants sign in
+ *    with community ID + IC). The old passwords are NOT carried over — the old
+ *    app is retired, not migrated (owner, 2026-11-17) — so every password is
+ *    random, and /auto signs in without one. Nothing here is a credential
+ *    usable off this machine. No email anywhere: the project keeps none.
+ *
+ * Every row built carries `legacy_id` (the dump's own id), which is how a
+ * re-run finds it and how `--fresh` removes exactly what this command made.
  *
  * DEV ONLY. It refuses outside local/testing/e2e, the same fence /auto stands
  * behind, because it plants accounts whose passwords nobody knows.
@@ -38,18 +42,6 @@ class LegacyAccounts extends Command
         {--fresh : Delete accounts this command made before rebuilding}';
 
     protected $description = 'Build super/hq/state admins and participants from the loaded legacy dump';
-
-    /**
-     * A reserved TLD (RFC 6761), so it resolves nowhere — and its OWN name, not
-     * the `demo.test` the seeders use.
-     *
-     * THAT SEPARATION IS LOAD-BEARING. `--fresh` deletes every account on this
-     * domain, and DemoSeeder plants `hq@demo.test` plus one admin and one
-     * participant per zone there. Sharing a domain would make `--fresh` quietly
-     * delete the demo data too — which it did, until a run against the real
-     * dump showed both sets of accounts answering to the same LIKE.
-     */
-    public const MAIL_DOMAIN = 'legacy.test';
 
     public function handle(): int
     {
@@ -74,9 +66,9 @@ class LegacyAccounts extends Command
 
         $this->newLine();
         $this->table(
-            ['role', 'name', 'email', 'zone'],
+            ['role', 'name', 'username', 'zone'],
             collect($admins)->map(fn (Admin $a) => [
-                $a->role, $a->name, $a->email, $a->state ?? '—',
+                $a->role, $a->name, $a->username, $a->state ?? '—',
             ])->take(8)->all()
         );
 
@@ -87,7 +79,7 @@ class LegacyAccounts extends Command
         $this->newLine();
         $this->line('Participants built: '.count($users));
         foreach (array_slice($users, 0, 3) as $u) {
-            $this->line("  {$u->email}  ({$u->company->name})");
+            $this->line("  {$u->community_id}  ({$u->company->name})");
         }
 
         $this->newLine();
@@ -148,19 +140,19 @@ class LegacyAccounts extends Command
     }
 
     /**
-     * A unique address per officer, derived from `loginname`.
+     * A unique username per officer, derived from `loginname`.
      *
      * THE DUMP HAS TWO OFFICERS SHARING ONE LOGIN. Ids 5 and 25 are both
      * 'NURUL HAIDA BINTI AHMAD' with `loginname` 'haida' — the same person
-     * entered twice — and `admins.email` is unique. Keying updateOrCreate on a
-     * colliding address does not fail: it UPDATES the first officer's row, so
-     * the second one silently takes over the first one's role. That is exactly
-     * what happened on the real dump: 17 admins were built, 16 rows existed, and
-     * the hq admin had been demoted to a state admin without a word.
+     * entered twice — and `admins.username` is unique. Handing both the same
+     * username used to make the second silently take over the first one's
+     * row (when the key was an email built from it): on the real dump 17
+     * admins were built, 16 rows existed, and the hq admin had been demoted to
+     * a state admin without a word.
      *
      * So the first officer to claim a slug keeps it and every later one carries
      * its legacy id. Deterministic, because the caller reads officers in id
-     * order — the same officer gets the same address on every run.
+     * order — the same officer gets the same username on every run.
      *
      * @param  array<string, string>  $taken  slug => the legacy id holding it
      */
@@ -182,8 +174,9 @@ class LegacyAccounts extends Command
     private function admin(object $officer, string $handle, string $role, ?string $zone): Admin
     {
         return Admin::updateOrCreate(
-            ['email' => $handle.'@'.self::MAIL_DOMAIN],
+            ['legacy_id' => (string) $officer->legacy_id],
             [
+                'username' => $handle,
                 // The officer's real name and title, which is the point: a test
                 // screen should read like the office's own list.
                 'name' => trim((string) $officer->name),
@@ -213,7 +206,7 @@ class LegacyAccounts extends Command
             [$code, $size] = $this->codeAndSize((string) $row->crafttype);
 
             $user = User::updateOrCreate(
-                ['email' => 'usahawan'.$row->legacy_id.'@'.self::MAIL_DOMAIN],
+                ['legacy_id' => (string) $row->legacy_id],
                 [
                     'name' => trim((string) $row->name),
                     'password' => bcrypt(Str::random(32)),
@@ -291,12 +284,12 @@ class LegacyAccounts extends Command
 
     private function forget(): void
     {
-        $like = '%@'.self::MAIL_DOMAIN;
-
-        $users = User::where('email', 'like', $like)->pluck('id');
+        // `legacy_id` is set only by this command, so nothing the office or
+        // the demo seeders made is touched.
+        $users = User::whereNotNull('legacy_id')->pluck('id');
         Company::whereIn('user_id', $users)->delete();
         User::whereIn('id', $users)->delete();
-        Admin::where('email', 'like', $like)->delete();
+        Admin::whereNotNull('legacy_id')->delete();
 
         $this->line('Removed the accounts this command had made.');
     }

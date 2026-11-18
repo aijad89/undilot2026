@@ -3,15 +3,16 @@
 use App\Models\Company;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 
 /**
  * A participant's profile: their account and company as the office keeps them,
- * read-only, and the one thing they change themselves, their password.
+ * read-only. No password: they sign in with community ID + IC.
  */
 function profileOwner(): Company
 {
     $user = User::factory()->create([
-        'name' => 'Siti Aminah', 'email' => 'siti@kraf.test', 'phone' => '012-345 6789',
+        'name' => 'Siti Aminah', 'phone' => '012-345 6789',
         'ic_number' => '800101-14-5678', 'password' => 'lama1234',
     ]);
 
@@ -23,7 +24,7 @@ it('shows the account and company as the office keeps them, the IC number in ful
 
     $this->actingAs($company->user, 'web')->get(route('profile'))
         ->assertOk()
-        ->assertSeeInOrder(['Your account', 'Siti Aminah', 'siti@kraf.test', '012-345 6789', '800101-14-5678'])
+        ->assertSeeInOrder(['Your account', 'Siti Aminah', '012-345 6789', '800101-14-5678'])
         ->assertSeeInOrder(['Your company', 'Seramik Klang Studio', 'Selangor', '3x6'])
         ->assertDontSee('Your company on record')
         // The craft code is the office's, never shown to the participant.
@@ -38,44 +39,33 @@ it('is reached from the menu, and only when signed in', function () {
         ->assertSee('href="'.route('profile').'"', false);
 });
 
-it('changes the password only with the current one, to a new and sound one', function () {
+it('has no password to change: participants sign in with community ID + IC', function () {
     $company = profileOwner();
-    $user = $company->user;
-    $this->actingAs($user, 'web');
 
-    $this->from(route('profile'))->put(route('profile.password'), ['current_password' => 'salah999', 'password' => 'baharu123', 'password_confirmation' => 'baharu123'])
-        ->assertSessionHasErrorsIn('password', ['current_password' => 'That is not your current password.']);
-    $this->from(route('profile'))->put(route('profile.password'), ['current_password' => 'lama1234', 'password' => 'lama1234', 'password_confirmation' => 'lama1234'])
-        ->assertSessionHasErrorsIn('password', 'password');
-    $this->from(route('profile'))->put(route('profile.password'), ['current_password' => 'lama1234', 'password' => 'short', 'password_confirmation' => 'short'])
-        ->assertSessionHasErrorsIn('password', 'password');
-    $this->from(route('profile'))->put(route('profile.password'), ['current_password' => 'lama1234', 'password' => 'baharu123', 'password_confirmation' => 'lain12345'])
-        ->assertSessionHasErrorsIn('password', 'password');
-    expect(Hash::check('lama1234', $user->fresh()->password))->toBeTrue();
+    $this->actingAs($company->user, 'web')->get(route('profile'))->assertOk()
+        ->assertDontSee('Change password')
+        ->assertDontSee('current_password', false);
 
-    $this->from(route('profile'))->put(route('profile.password'), ['current_password' => 'lama1234', 'password' => 'baharu123', 'password_confirmation' => 'baharu123'])
-        ->assertRedirect(route('profile'))
-        ->assertSessionHas('success');
-    expect(Hash::check('baharu123', $user->fresh()->password))->toBeTrue();
-
-    $this->get(route('profile'))->assertSee('Password changed.');
+    // The endpoint is gone, not just unlinked.
+    expect(Route::has('profile.password'))->toBeFalse();
+    $this->put(url('/profile/password'), ['current_password' => 'lama1234', 'password' => 'baharu123', 'password_confirmation' => 'baharu123'])
+        ->assertNotFound();
+    expect(Hash::check('lama1234', $company->user->fresh()->password))->toBeTrue();
 });
 
-it('stops guessing at the current password after six tries a minute', function () {
+it('shows the community ID they sign in with', function () {
     $company = profileOwner();
-    $this->actingAs($company->user, 'web');
+    $company->user->update(['community_id' => 'KOM-0042']);
 
-    foreach (range(1, 6) as $try) {
-        $this->put(route('profile.password'), ['current_password' => "salah{$try}", 'password' => 'baharu123', 'password_confirmation' => 'baharu123'])
-            ->assertStatus(302);
-    }
-    $this->put(route('profile.password'), ['current_password' => 'lama1234', 'password' => 'baharu123', 'password_confirmation' => 'baharu123'])
-        ->assertStatus(429);
+    $this->actingAs($company->user, 'web')->get(route('profile'))
+        ->assertSeeInOrder(['Community ID', 'KOM-0042', 'Mobile phone'])
+        // No email line at all: the project keeps none.
+        ->assertDontSee('<dt>Email</dt>', false);
 });
 
-it('stacks its three cards down one column: account, company, password', function () {
+it('stacks its two cards down one column: account, company', function () {
     $this->actingAs(profileOwner()->user, 'web')->get(route('profile'))->assertOk()
-        ->assertSeeInOrder(['class="ap-profile-stack"', 'Your account', 'Your company', 'Change password'], false)
+        ->assertSeeInOrder(['class="ap-profile-stack"', 'Your account', 'Your company'], false)
         // The two side-by-side columns are gone, not just restyled.
         ->assertDontSee('class="ap-dash-side"', false)
         ->assertDontSee('ap-dash-grid ap-profile-grid', false);

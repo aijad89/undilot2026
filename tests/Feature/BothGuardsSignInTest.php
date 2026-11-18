@@ -21,7 +21,7 @@ it('signs an admin in and lands them on the admin dashboard', function () {
     $admin = Admin::factory()->super()->create(['password' => 'kraf1234']);
 
     $this->post('/admin/login', [
-        'email' => $admin->email,
+        'username' => $admin->username,
         'password' => 'kraf1234',
     ])->assertRedirect('/admin/dashboard');
 
@@ -80,8 +80,8 @@ it('refuses a wrong password, or a wrong IC, on its own guard', function () {
     $admin = Admin::factory()->super()->create(['password' => 'kraf1234']);
     $user = User::factory()->create(['community_id' => '07-3-8', 'ic_number' => '890508-12-0000']);
 
-    $this->post('/admin/login', ['email' => $admin->email, 'password' => 'wrong'])
-        ->assertSessionHasErrors('email');
+    $this->post('/admin/login', ['username' => $admin->username, 'password' => 'wrong'])
+        ->assertSessionHasErrors('username');
     expect(auth('admin')->check())->toBeFalse();
 
     $this->post('/login', ['community_id' => $user->community_id, 'ic_number' => '000000-00-0000'])
@@ -99,7 +99,7 @@ it('sends an admin to the admin dashboard, not a participant page they were boun
 
     $this->get('/dashboard')->assertRedirect(route('login'));   // stores /dashboard as intended
 
-    $this->post('/admin/login', ['email' => $admin->email, 'password' => 'kraf1234'])
+    $this->post('/admin/login', ['username' => $admin->username, 'password' => 'kraf1234'])
         ->assertRedirect(route('admin.dashboard'));
 
     expect(session('url.intended'))->toBeNull();   // dropped, not kept to ambush the next sign-in
@@ -110,7 +110,7 @@ it('still sends an admin back to the admin page they were bounced from', functio
 
     $this->get(route('admin.events.index'))->assertRedirect(route('admin.login'));
 
-    $this->post('/admin/login', ['email' => $admin->email, 'password' => 'kraf1234'])
+    $this->post('/admin/login', ['username' => $admin->username, 'password' => 'kraf1234'])
         ->assertRedirect(route('admin.events.index'));
 });
 

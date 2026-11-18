@@ -34,7 +34,7 @@ function signInParticipant($test): User
 function signInAdmin($test): Admin
 {
     $admin = Admin::factory()->super()->create(['password' => 'kraf1234']);
-    $test->post(route('admin.login'), ['email' => $admin->email, 'password' => 'kraf1234']);
+    $test->post(route('admin.login'), ['username' => $admin->username, 'password' => 'kraf1234']);
     auth()->forgetGuards();
 
     return $admin;
@@ -91,7 +91,7 @@ it('kills a "remember me" sign-in too, so the cookie cannot sign anyone back in'
     $signIn = $this->post(route($who === 'participant' ? 'login' : 'admin.login'), [
         ...($who === 'participant'
             ? ['community_id' => '07-3-8', 'ic_number' => '890508-12-0000']
-            : ['email' => $model->email, 'password' => 'kraf1234']),
+            : ['username' => $model->username, 'password' => 'kraf1234']),
         'remember' => 'on',
     ])->assertCookie($recaller);
 

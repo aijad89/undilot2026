@@ -27,7 +27,7 @@ const ADMIN_PAGES = [
 ];
 
 test('every admin screen opens for a super admin, with no browser errors', async ({ page }) => {
-    await signInAs(page, 'e2e-super@e2e.test');
+    await signInAs(page, 'e2e-super');
 
     for (const url of ADMIN_PAGES) {
         const errors = watchErrors(page);
@@ -41,7 +41,7 @@ test('every admin screen opens for a super admin, with no browser errors', async
 });
 
 test('a state admin sees no national screens in the sidebar and is refused them by URL', async ({ page }) => {
-    await signInAs(page, 'e2e-admin@e2e.test');
+    await signInAs(page, 'e2e-admin');
 
     // By text, not by link role: a group is a button, so a link count of zero
     // would pass whether or not it showed. The first loop proves the
@@ -61,7 +61,7 @@ test('a state admin sees no national screens in the sidebar and is refused them 
 
 test('a participant lands on their dashboard, with the draw listed', async ({ page }) => {
     const errors = watchErrors(page);
-    await signInAs(page, 'tenun@e2e.test');
+    await signInAs(page, 'E2E-TENUN');
 
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByText('E2E Fair')).toBeVisible();

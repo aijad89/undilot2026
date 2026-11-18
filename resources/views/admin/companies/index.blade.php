@@ -24,7 +24,7 @@
 
     <form method="GET" class="mac-filter-bar mb-3">
         <input type="search" name="search" value="{{ request('search') }}"
-               class="mac-input" placeholder="Company, owner, email, IC or community ID" aria-label="Search companies">
+               class="mac-input" placeholder="Company, owner, IC or community ID" aria-label="Search companies">
 
         @if($canFilterZone)
             <select name="state" class="mac-select" aria-label="Filter by zone">

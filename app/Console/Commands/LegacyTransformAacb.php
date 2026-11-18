@@ -126,24 +126,21 @@ class LegacyTransformAacb extends Command
      */
     private function resolveUsers($people): ?array
     {
-        $domain = LegacyAccounts::MAIL_DOMAIN;
-
-        $emails = $people->map(fn ($row) => 'usahawan'.$row->legacy_id.'@'.$domain);
-        $found = User::whereIn('email', $emails)->pluck('id', 'email');
+        // legacy:accounts stamps each account with the dump's own id.
+        $found = User::whereIn('legacy_id', $people->keys()->map(fn ($id) => (string) $id))
+            ->pluck('id', 'legacy_id');
 
         $map = [];
         $missing = 0;
 
         foreach ($people as $legacyId => $row) {
-            $email = 'usahawan'.$legacyId.'@'.$domain;
-
-            if (! isset($found[$email])) {
+            if (! isset($found[(string) $legacyId])) {
                 $missing++;
 
                 continue;
             }
 
-            $map[(string) $legacyId] = $found[$email];
+            $map[(string) $legacyId] = $found[(string) $legacyId];
         }
 
         if ($missing > 0) {

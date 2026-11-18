@@ -22,13 +22,15 @@ class User extends Authenticatable
     /** @var list<string> */
     protected $fillable = [
         'name',
-        'email',
         'password',
         'phone',
         'ic_number',
         'community_id',
         'address',
         'is_active',
+        // Set only by legacy:accounts (dev). Controllers pass validated arrays
+        // that never carry it.
+        'legacy_id',
     ];
 
     /** @var list<string> */

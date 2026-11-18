@@ -5,10 +5,10 @@ const { expect } = require('@playwright/test');
  * E2eSeeder's accounts: e2e-super@, e2e-hq@, e2e-admin@ (Johor), and the
  * participants tenun@, logam@, kayu@ — all on e2e.test.
  */
-async function signInAs(page, email) {
+async function signInAs(page, who) {
     await page.goto('/auto');
-    const card = page.locator(`form:has(.email:text-is("${email}")) button`);
-    await expect(card, `no /auto card for ${email}`).toHaveCount(1);
+    const card = page.locator(`form:has(.who:text-is("${who}")) button`);
+    await expect(card, `no /auto card for ${who}`).toHaveCount(1);
     await Promise.all([page.waitForNavigation(), card.click()]);
 }
 

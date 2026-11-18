@@ -88,7 +88,7 @@ it('refuses to delete a plot that a draw entry still points at', function () {
         'created_at' => now(), 'updated_at' => now(),
     ]);
     $userId = DB::table('users')->insertGetId([
-        'name' => 'A', 'email' => 'a@example.test', 'password' => 'x',
+        'name' => 'A', 'password' => 'x',
         'is_active' => 1, 'created_at' => now(), 'updated_at' => now(),
     ]);
     $companyId = DB::table('companies')->insertGetId([
@@ -109,7 +109,7 @@ it('refuses to delete a plot that a draw entry still points at', function () {
 
 it('holds one company per user at the schema level, not just in a validation rule', function () {
     $userId = DB::table('users')->insertGetId([
-        'name' => 'A', 'email' => 'a@example.test', 'password' => 'x',
+        'name' => 'A', 'password' => 'x',
         'is_active' => 1, 'created_at' => now(), 'updated_at' => now(),
     ]);
 

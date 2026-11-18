@@ -21,9 +21,11 @@
         </div>
 
         <div class="col-md-6">
-            <label class="mac-label" for="email">Email</label>
-            <input type="email" id="email" name="email" class="mac-form-control"
-                   value="{{ old('email', $admin->email) }}" required maxlength="255" autocomplete="off">
+            <label class="mac-label" for="username">Username</label>
+            <input type="text" id="username" name="username" class="mac-form-control"
+                   value="{{ old('username', $admin->username) }}" required maxlength="50"
+                   autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="username-hint">
+            <small id="username-hint" class="mac-muted">What they sign in with. Letters, numbers, dot, dash or underscore; saved in lower case.</small>
         </div>
 
         <div class="col-md-6">
@@ -69,7 +71,7 @@
         @if($editing)
             Leave both boxes empty to keep the current password.
         @else
-            At least 8 characters, with letters and numbers. Give it to the new admin yourself; nothing is emailed.
+            At least 8 characters, with letters and numbers. Give it to the new admin yourself.
         @endif
     </p>
 

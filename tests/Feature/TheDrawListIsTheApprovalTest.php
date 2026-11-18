@@ -186,7 +186,6 @@ it('creates the company and its one account from a single form', function () {
             'name' => 'Kraf Tenun',
             'state' => 'Johor',
             'owner_name' => 'Aminah',
-            'email' => 'aminah@example.test',
             'phone' => '012-3456789',
             'ic_number' => '900101-01-2222',
             'community_id' => 'KOM-0003',
@@ -199,7 +198,7 @@ it('creates the company and its one account from a single form', function () {
     $user = User::sole();
 
     expect($company->user_id)->toBe($user->id)
-        ->and($user->email)->toBe('aminah@example.test')
+        ->and($user->community_id)->toBe('KOM-0003')
         ->and($user->is_active)->toBeTrue()
         ->and(Hash::check('kraf1234', $user->password))->toBeTrue();
 });
@@ -208,24 +207,24 @@ it('stores an IC typed as twelve bare digits in its dashed form, so one IC is on
     $existing = Company::factory()->create(['state' => 'Johor']);
     $existing->user->update(['ic_number' => '880101-01-5555']);
 
-    $post = fn (string $ic, string $email) => $this->actingAs(stateAdmin('Johor'), 'admin')
+    $post = fn (string $ic, string $tag) => $this->actingAs(stateAdmin('Johor'), 'admin')
         ->post(route('admin.companies.store'), [
-            'name' => 'Kraf '.$email, 'state' => 'Johor', 'owner_name' => 'Owner',
-            'email' => $email, 'ic_number' => $ic, 'community_id' => 'KOM-'.$email,
+            'name' => 'Kraf '.$tag, 'state' => 'Johor', 'owner_name' => 'Owner',
+            'ic_number' => $ic, 'community_id' => 'KOM-'.$tag,
         ]);
 
     // The same IC as the existing account, typed without dashes: refused as a
     // duplicate, never stored as a second spelling.
-    $post('880101015555', 'twin@example.test')->assertSessionHasErrors('ic_number');
+    $post('880101015555', 'twin')->assertSessionHasErrors('ic_number');
 
-    $post('900202 02 6666', 'new@example.test')->assertRedirect();
-    expect(User::where('email', 'new@example.test')->value('ic_number'))->toBe('900202-02-6666');
+    $post('900202 02 6666', 'new')->assertRedirect();
+    expect(User::where('community_id', 'KOM-new')->value('ic_number'))->toBe('900202-02-6666');
 
-    $post('12345', 'short@example.test')
+    $post('12345', 'short')
         ->assertSessionHasErrors(['ic_number' => 'An IC number has twelve digits, written 990101-01-1234.']);
 });
 
-it('refuses a second company on one email, with a message rather than a database error', function () {
+it('refuses a second company on one IC, with a message rather than a database error', function () {
     $existing = Company::factory()->create(['state' => 'Johor']);
 
     $this->actingAs(stateAdmin('Johor'), 'admin')
@@ -233,9 +232,10 @@ it('refuses a second company on one email, with a message rather than a database
             'name' => 'Second Company',
             'state' => 'Johor',
             'owner_name' => 'Someone',
-            'email' => $existing->user->email,
+            'ic_number' => $existing->user->ic_number,
+            'community_id' => 'KOM-0777',
         ])
-        ->assertSessionHasErrors('email');
+        ->assertSessionHasErrors('ic_number');
 
     expect(Company::count())->toBe(1);
 });

@@ -2,7 +2,7 @@
 
 // An open event with an empty draw list, and one Johor company on no list, with
 // an account — for the zone-then-HQ check to walk through. Prints the event id,
-// the event title, the company name and the account email, one per line.
+// the event title, the company name and the account's community ID, one per line.
 
 use App\Models\Company;
 use App\Models\Event;
@@ -26,7 +26,7 @@ $event = Event::create([
 
 $user = User::create([
     'name' => "Owner Anyaman {$tag}",
-    'email' => "anyaman-{$tag}@e2e.test",
+    'community_id' => 'E2E-ANYAMAN-'.strtoupper($tag),
     'password' => bcrypt(Str::random(40)),
     'is_active' => true,
 ]);
@@ -34,4 +34,4 @@ $user = User::create([
 $company = Company::create(['user_id' => $user->id, 'name' => "Anyaman {$tag}", 'state' => 'Johor', 'is_active' => true]);
 $company->forceFill(['kraf_code' => 'TTN', 'plot_size' => '3x3'])->save();
 
-echo $event->id, PHP_EOL, $event->title, PHP_EOL, $company->name, PHP_EOL, $user->email, PHP_EOL;
+echo $event->id, PHP_EOL, $event->title, PHP_EOL, $company->name, PHP_EOL, $user->community_id, PHP_EOL;

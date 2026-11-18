@@ -11,7 +11,7 @@ use App\Support\AdminZones;
  * and safe to get wrong:
  *
  *   A BLANK CELL IS A FACT, not a thing to guess at. Measured on the office's
- *   own 858-row list: no email on any row, no phone on any row, and no craft
+ *   own 858-row list: no phone on any row, and no craft
  *   code on 657 of them. Filling those in would be inventing data.
  *
  *   MATCHED ON IC, because nothing else can be. Across those 858 rows the IC is
@@ -51,7 +51,6 @@ it('writes a participant and their company from one row', function () {
     $user = User::where('ic_number', '890508-12-0000')->first();
 
     expect($user->name)->toBe('SITI BINTI ALI')
-        ->and($user->email)->toBe('siti@gmail.com')
         ->and($user->phone)->toBe('0123456789')
         ->and($user->community_id)->toBe('07-3-8');
 
@@ -81,20 +80,17 @@ it('stores a blank cell as nothing rather than guessing', function () {
         ->and($company->entrepreneur_category)->toBeNull();
 });
 
-it('gives a participant with no email one that cannot receive mail', function () {
+it('reads no email: an `emel` column is named as not read, and nothing stores it', function () {
+    // The project keeps no email (owner, 2026-11-17). CSV_HEAD still carries
+    // `emel`, the way an old office sheet might.
     Artisan::call('import:participants', [
-        'path' => csvFile([CSV_HEAD, 'AHMAD BIN ALI,700101-01-1111,,,Kraf Ahmad,Kedah,,,,']),
+        'path' => csvFile([CSV_HEAD, 'AHMAD BIN ALI,700101-01-1111,,ahmad@gmail.com,Kraf Ahmad,Kedah,,,,KOM-1']),
         '--force' => true,
     ]);
 
-    $email = User::where('ic_number', '700101-01-1111')->value('email');
-
-    // `users.email` is unique and required, so a row with none still needs an
-    // address — on a reserved TLD, so nobody mistakes it for a working one. The
-    // participant stays locked out until the office supplies a real address and
-    // `legacy:emails` moves it across, matched on the same IC.
-    expect(str_ends_with($email, '@'.App\Console\Commands\LegacyAccounts::MAIL_DOMAIN))
-        ->toBeTrue("Generated address '{$email}' is not on the reserved domain.");
+    expect(Artisan::output())->toContain('Columns not read', 'emel')
+        ->and(User::where('ic_number', '700101-01-1111')->exists())->toBeTrue()
+        ->and(Illuminate\Support\Facades\Schema::hasColumn('users', 'email'))->toBeFalse();
 });
 
 it('refuses a zone that is not one of the office zones', function () {
@@ -160,7 +156,7 @@ it('drops both rows when one IC names two people', function () {
         ->and(User::where('name', 'SECOND PERSON')->exists())->toBeFalse();
 });
 
-it('updates on a re-run instead of colliding with the unique email', function () {
+it('updates the same person on a re-run instead of adding a second one', function () {
     $file = csvFile([CSV_HEAD, 'SITI BINTI ALI,890508-12-0000,,,Batik Warisan,Johor,TBPS,3x3,,']);
 
     Artisan::call('import:participants', ['path' => $file, '--force' => true]);
@@ -181,22 +177,6 @@ it('updates on a re-run instead of colliding with the unique email', function ()
         ->and($company->name)->toBe('Batik Warisan Baharu')
         ->and($company->state)->toBe('Kedah')
         ->and($company->kraf_code)->toBe('TBP');
-});
-
-it('does not overwrite a real address with a generated one on a re-run', function () {
-    $user = User::factory()->create([
-        'ic_number' => '890508-12-0000',
-        'email' => 'siti@gmail.com',
-    ]);
-
-    // The sheet's email column is blank, but this participant already proved an
-    // address is theirs. Generating over it would lock them out again.
-    Artisan::call('import:participants', [
-        'path' => csvFile([CSV_HEAD, 'SITI BINTI ALI,890508-12-0000,,,Batik Warisan,Johor,,,,']),
-        '--force' => true,
-    ]);
-
-    expect($user->fresh()->email)->toBe('siti@gmail.com');
 });
 
 it('reads a file Excel saved, byte-order mark and all', function () {
@@ -251,12 +231,9 @@ it('names a column it does not read, because a misspelling looks like an extra o
         '--force' => true,
     ]);
 
-    // `emal` is a typo for `emel`; silently ignoring it would generate an
-    // address and lock the participant out while the sheet looked right.
+    // A column the importer does not know is named, so a misspelling of one it
+    // does (`alamt` for `alamat`) is seen rather than silently dropped.
     expect(Artisan::output())->toContain('emal');
-
-    expect(str_ends_with(User::where('ic_number', '890508-12-0000')->value('email'), '.test'))
-        ->toBeTrue('The misspelled column should not have been read as the email.');
 });
 
 it('stops when the sheet has no IC column at all', function () {

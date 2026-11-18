@@ -1,7 +1,7 @@
 {{--
     The company form, shared by create and edit. It writes TWO rows: the company
-    and the one account that signs in for it. The owner's name, email, phone and
-    IC are columns on the USER — they are not duplicated on the company.
+    and the one account that signs in for it. The owner's name, phone, IC and
+    community ID are columns on the USER — they are not duplicated on the company.
 
     Expects:
       $company  — the Company being edited, or a new one
@@ -79,13 +79,6 @@
                    value="{{ $owner('owner_name', 'name') }}" required maxlength="255">
         </div>
 
-        <div class="col-md-6">
-            <label class="mac-label" for="email">Email</label>
-            <input type="email" id="email" name="email" class="mac-form-control"
-                   value="{{ $owner('email', 'email') }}" maxlength="255">
-            <small class="mac-muted">Optional. The participant signs in with community ID and IC.</small>
-        </div>
-
         <div class="col-md-4">
             <label class="mac-label" for="phone">Phone</label>
             <input type="text" id="phone" name="phone" class="mac-form-control"
@@ -129,12 +122,8 @@
 
         <div class="col-12 mt-1">
             <small class="mac-muted">
-                @if($editing)
-                    Leave both empty to keep the current password.
-                @else
-                    Leave both empty and the owner sets their own through "forgot password".
-                @endif
-                At least 8 characters, with a letter and a number.
+                Not needed: the participant signs in with community ID and IC.
+                Leave both empty{{ $editing ? ' to keep the current password' : ' (a random one is set)' }}.
             </small>
         </div>
 

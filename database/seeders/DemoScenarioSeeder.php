@@ -34,7 +34,7 @@ class DemoScenarioSeeder extends LocalOnlySeeder
 
     public function run(): void
     {
-        $this->hq = Admin::where('email', 'hq@demo.test')->firstOrFail();
+        $this->hq = Admin::where('username', DemoAdminSeeder::HQ)->firstOrFail();
         $this->companies();
 
         $this->noPlanYet();
@@ -59,50 +59,50 @@ class DemoScenarioSeeder extends LocalOnlySeeder
 
     private function companies(): void
     {
-        $johor = Company::whereHas('user', fn ($q) => $q->where('email', 'user.johor@demo.test'))->firstOrFail();
+        $johor = $this->demoCompany('Johor');
         $this->co = [
             'johor' => $johor,
-            'selangor' => $this->demoCompany('user.selangor-kuala-lumpur-dan-putrajaya@demo.test'),
-            'kedah' => $this->demoCompany('user.kedah@demo.test'),
-            'n9' => $this->demoCompany('user.negeri-sembilan@demo.test'),
+            'selangor' => $this->demoCompany('Selangor, Kuala Lumpur dan Putrajaya'),
+            'kedah' => $this->demoCompany('Kedah'),
+            'n9' => $this->demoCompany('Negeri Sembilan'),
         ];
 
         // Johor companies at TBPS 3x3: the draw cases need several in one zone.
         foreach (['johor2' => 'Batik Tulis Muar', 'johor3' => 'Batik Kukus Batu Pahat', 'johor4' => 'Batik Pelangi Kluang', 'johor5' => 'Batik Moden Segamat'] as $key => $name) {
-            $this->co[$key] = $this->company("user.{$key}@demo.test", $name, 'Johor', 'TBPS');
+            $this->co[$key] = $this->company($key, $name, 'Johor', 'TBPS');
         }
 
         // One company per job from here down, so a case that edits one never
         // reaches into another case's draw list (a booth change carries to
         // every draft list the company is on).
-        $one = fn (string $key, string $email, string $name, ?string $code = 'TBPS') => $this->co[$key] = $this->company($email, $name, 'Johor', $code);
+        $one = fn (string $key, string $seed, string $name, ?string $code = 'TBPS') => $this->co[$key] = $this->company($seed, $name, 'Johor', $code);
 
-        $one('baru', 'user.johor-baru@demo.test', 'Kraf Baru Pontian', null);          // TC-089 → 090, 111, 096, 156
-        $one('kosong', 'user.johor-kosong@demo.test', 'Kraf Kosong Kota Tinggi', null); // TC-041–044
-        $one('sunyi', 'user.johor-sunyi@demo.test', 'Kraf Sunyi Kulai', null);          // TC-152: never touched
-        $one('ganti', 'user.johor-ganti@demo.test', 'Kraf Ganti Mersing');              // TC-037, TC-047
-        $one('padam', 'user.johor-padam@demo.test', 'Kraf Padam Pengerang');            // TC-040
-        $one('saiz', 'user.johor-saiz@demo.test', 'Kraf Saiz Desaru');                  // TC-045/046
-        $one('saiz2', 'user.johor-saiz2@demo.test', 'Kraf Saiz Kulai');                 // TC-099
-        $one('saiz3', 'user.johor-saiz3@demo.test', 'Kraf Saiz Tangkak');               // TC-100
+        $one('baru', 'johor-baru', 'Kraf Baru Pontian', null);          // TC-089 → 090, 111, 096, 156
+        $one('kosong', 'johor-kosong', 'Kraf Kosong Kota Tinggi', null); // TC-041–044
+        $one('sunyi', 'johor-sunyi', 'Kraf Sunyi Kulai', null);          // TC-152: never touched
+        $one('ganti', 'johor-ganti', 'Kraf Ganti Mersing');              // TC-037, TC-047
+        $one('padam', 'johor-padam', 'Kraf Padam Pengerang');            // TC-040
+        $one('saiz', 'johor-saiz', 'Kraf Saiz Desaru');                  // TC-045/046
+        $one('saiz2', 'johor-saiz2', 'Kraf Saiz Kulai');                 // TC-099
+        $one('saiz3', 'johor-saiz3', 'Kraf Saiz Tangkak');               // TC-100
 
         // Uji: Senarai Cabutan, one company per row kind.
-        $one('verified1', 'user.verified1@demo.test', 'Tenun Senai');                   // TC-104 → 106 → 154, 158
-        $one('verified2', 'user.verified2@demo.test', 'Ukiran Pasir Gudang');           // TC-098 → 097
-        $one('waiting1', 'user.waiting1@demo.test', 'Anyaman Benut');                   // TC-091 → 093
-        $one('waiting2', 'user.waiting2@demo.test', 'Tembikar Yong Peng');              // TC-105
-        $one('waiting3', 'user.waiting3@demo.test', 'Songket Labis');                   // TC-153
-        $one('returned', 'user.returned@demo.test', 'Manik Rengit');                    // TC-094 → 095 → 097
-        $one('pending1', 'user.pending1@demo.test', 'Rotan Simpang Renggam');           // TC-086/087, 160 → 101
-        $one('pending2', 'user.pending2@demo.test', 'Batik Air Hitam');                 // TC-102 → 157
+        $one('verified1', 'verified1', 'Tenun Senai');                   // TC-104 → 106 → 154, 158
+        $one('verified2', 'verified2', 'Ukiran Pasir Gudang');           // TC-098 → 097
+        $one('waiting1', 'waiting1', 'Anyaman Benut');                   // TC-091 → 093
+        $one('waiting2', 'waiting2', 'Tembikar Yong Peng');              // TC-105
+        $one('waiting3', 'waiting3', 'Songket Labis');                   // TC-153
+        $one('returned', 'returned', 'Manik Rengit');                    // TC-094 → 095 → 097
+        $one('pending1', 'pending1', 'Rotan Simpang Renggam');           // TC-086/087, 160 → 101
+        $one('pending2', 'pending2', 'Batik Air Hitam');                 // TC-102 → 157
 
         // A name a spreadsheet reads as a formula: TC-162; verified, TC-107.
-        $this->co['formula'] = $this->company('user.formula@demo.test', '=SUM(1+1) Kraf', 'Johor', 'TBPS');
+        $this->co['formula'] = $this->company('formula', '=SUM(1+1) Kraf', 'Johor', 'TBPS');
     }
 
     /**
-     * A distinct, realistic-looking IC per scenario row, derived from the email
-     * so it is the same on every reseed.
+     * A distinct, realistic-looking IC per scenario row, derived from the row's
+     * seed string so it is the same on every reseed.
      *
      * Derived rather than random because a scenario row is referenced by test
      * case number in a manual sheet, and an IC that changes each reseed makes
@@ -110,32 +110,35 @@ class DemoScenarioSeeder extends LocalOnlySeeder
      * rows are added one at a time as test cases need them, and a parallel table
      * of ICs would drift out of step with the calls below.
      */
-    private function ic(string $email): string
+    private function ic(string $seed): string
     {
-        // crc32 of the email: stable across PHP versions and machines, unlike
+        // crc32 of the seed: stable across PHP versions and machines, unlike
         // a hash seeded per process.
-        $seed = crc32($email);
+        $seed = crc32($seed);
 
         $born = \Carbon\CarbonImmutable::create(1960, 1, 1)->addDays($seed % 12000);
 
         return $born->format('ymd').'-01-'.str_pad((string) ($seed % 10000), 4, '0', STR_PAD_LEFT);
     }
 
-    private function demoCompany(string $email): Company
+    /** DemoUserSeeder's participant for a zone. */
+    private function demoCompany(string $zone): Company
     {
-        return Company::whereHas('user', fn ($q) => $q->where('email', $email))->firstOrFail();
+        $id = DemoUserSeeder::communityIdFor($zone);
+
+        return Company::whereHas('user', fn ($q) => $q->where('community_id', $id))->firstOrFail();
     }
 
-    private function company(string $email, string $name, string $zone, ?string $code): Company
+    /** A scenario company. `$seed` names the row; its community ID and IC derive from it. */
+    private function company(string $seed, string $name, string $zone, ?string $code): Company
     {
-        $ic = $this->ic($email);
+        $ic = $this->ic($seed);
 
-        $user = \App\Models\User::firstOrCreate(['email' => $email], [
+        $user = \App\Models\User::firstOrCreate(['community_id' => 'KOM-'.strtoupper(substr(md5($seed), 0, 6))], [
             'name' => "Owner {$name}",
             'password' => \Illuminate\Support\Str::random(40),
             'phone' => '01'.random_int(10000000, 99999999),
             'ic_number' => $ic,
-            'community_id' => 'KOM-'.strtoupper(substr(md5($email), 0, 6)),
             'is_active' => true,
         ]);
 

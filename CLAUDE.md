@@ -40,7 +40,7 @@ disalin.
 | DB | `undilot2026` pada `127.0.0.1` — sendiri |
 | PHP CLI | `/c/Users/DELL/.config/herd/bin/php84.bat` |
 | MySQL CLI | `/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe` |
-| Admin pertama | dari `.env` — `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` |
+| Admin pertama | dari `.env` — `ADMIN_SEED_USERNAME` / `ADMIN_SEED_PASSWORD` |
 | Log masuk pantas | `http://undilot2026.test/auto` — sebarang akaun, tanpa kata laluan, plus butang *Work the queue* |
 | DB suite pelayar | `undilot2026_e2e`, dicipta dan ditetapkan semula oleh `tests/e2e/serve.js` |
 | Git | `https://github.com/aijad89/undilot2026` (awam), cawangan `main` |
@@ -442,10 +442,10 @@ sehingga larian pelayar pertama menunjukkan "Confirmed On" lapan jam awal.
 
 ### `SESSION_DRIVER` mesti `database`
 
-`NewPasswordController::logOutOtherDevices()` mengusir dengan memadam baris
-daripada jadual `sessions`. Pada pemacu lain ia memadan **tiada apa**: reset
-melaporkan berjaya dan peranti lain kekal log masuk. Tiada ralat, tiada ujian
-gagal — hanya satu `Log::warning`.
+Sebab asalnya — reset kata laluan mengusir peranti lain dengan memadam baris
+`sessions` — hilang bersama aliran reset (dibuang 2026-11-17). Ia kekal
+`database` kerana jadual `sessions` ada dalam skema dan deploy menjangkakannya;
+jangan tukar tanpa sebab baharu.
 
 ### Satu-satunya muat naik ialah sepanduk acara, ke cakera `public`
 
@@ -499,14 +499,41 @@ yang sama → ditolak, bukan yang pertama. Had cuba: 5 per ID Komuniti + IP
 
 **Kelemahan yang diterima buat sementara:** kedua-dua nilai bukan rahsia — IC
 dicetak pada slip. Pasukan akan menyemak semula kemudian; **jangan "betulkan"
-tanpa keputusan pemilik.** Admin tidak berubah: `/admin/login` kekal emel +
-kata laluan.
+tanpa keputusan pemilik.**
 
-Akibatnya: borang syarikat **mewajibkan** ID Komuniti dan IC; emel pilihan
-(kosong → `peserta<digit IC>@legacy.test`, alamat yang tidak boleh terima
-mel, sama seperti import). Import memberi amaran untuk baris tanpa
-`no_komuniti` — orang itu tidak boleh log masuk. Route reset kata laluan
-masih wujud tetapi pautannya dibuang dari borang log masuk.
+Akibatnya: borang syarikat **mewajibkan** ID Komuniti dan IC. Import memberi
+amaran untuk baris tanpa `no_komuniti` — orang itu tidak boleh log masuk. Kad
+"Change password" di profil dan route `profile.password` dibuang; profil
+memaparkan ID Komuniti.
+
+### Pegawai log masuk dengan nama pengguna + kata laluan
+
+Keputusan pemilik 2026-11-17. `admins.username` (unik, wajib) menggantikan
+emel; disimpan **huruf kecil dan dipotong ruang** (`AdminController`), dan
+`AdminLoginRequest::username()` menormalkan input yang sama — SQLite
+membanding string peka huruf besar, MySQL tidak, jadi tanpa normalisasi
+`Hafiz` log masuk pada satu pemacu dan gagal pada yang lain. Kata laluan
+**baharu**, ditetapkan dalam aplikasi: aplikasi web lama dipersarakan, bukan
+dimigrasi, jadi kata laluan lamanya tidak dibawa. Admin pertama dari
+`ADMIN_SEED_USERNAME` / `ADMIN_SEED_PASSWORD`.
+
+### Tiada emel langsung dalam projek ini (keputusan pemilik 2026-11-17)
+
+**Tiada lajur `email`** pada `users` atau `admins`, tiada jadual
+`password_reset_tokens`, tiada medan emel pada mana-mana borang, dan import CSV
+tidak membaca lajur `emel` (ia dilaporkan sebagai lajur tidak dibaca). Demo dan
+seeder mengenal pasti baris mereka dengan ID Komuniti (`KOM-…`, `BATIK-…`,
+`E2E-…`) atau nama pengguna (`demo.hq`, `e2e-super`), bukan domain emel.
+`legacy:emails` dibuang.
+
+Setiap notifikasi (`AddedToDraw`, `RemovedFromDraw`, `VotingCloseReminder`)
+ialah **dalam aplikasi sahaja** — `via()` = `['database']`, tiada `toMail()`.
+Aliran lupa/reset kata laluan (satu-satunya lagi yang menghantar mel) dibuang
+bersama controller dan view-nya. Jadi pelayan mel yang dikonfigurasi kemudian
+pun tidak menghantar apa-apa. `TheAppSendsNoEmailTest` menolak mana-mana
+kelas dalam `app/Notifications` yang ada `toMail()`. **Jangan tambah saluran
+`mail` tanpa keputusan pemilik.** Admin menetapkan semula kata laluan admin
+lain dari skrin admin.
 
 ### Nombor lot: `TBPS02`, tanpa lokasi (keputusan pemilik 2026-11-17)
 
@@ -665,49 +692,18 @@ dapat satu admin negeri — **peranan ditetapkan, bukan dimigrasi**, kerana
 
 Dua perkara yang menggigit dan kini dikunci ujian:
 
-- **Domainnya `legacy.test`, bukan `demo.test`.** `--fresh` memadam ikut domain,
-  dan `DemoSeeder` menanam akaunnya pada `demo.test`. Berkongsi domain bermakna
-  `--fresh` memadam data demo juga — yang memang berlaku sebelum ini.
+- **Penanda ialah `legacy_id`** pada `users` dan `admins`, diisi hanya oleh
+  arahan ini. `--fresh` memadam ikut lajur itu. Dahulu penandanya domain emel
+  (`legacy.test`), dan sekali ia dikongsi dengan `DemoSeeder` — `--fresh`
+  memadam data demo juga. Pegawai mendapat `loginname` sebagai `username` dan
+  kata laluan rawak (kata laluan lama tidak dibawa).
 - **Dua pegawai berkongsi satu `loginname`** (id 5 dan 25, kedua-duanya
-  `haida`). `updateOrCreate` pada email bertembung **tidak gagal** — ia mengemas
+  `haida`). `updateOrCreate` pada kunci bertembung **tidak gagal** — ia mengemas
   kini baris pegawai pertama, jadi yang kedua merampas peranan yang sudah
   diberi. Pada dump sebenar: 17 admin dibina, 16 baris wujud, dan admin hq
   **hilang tanpa sebarang amaran**. Slug pertama menang; yang kemudian membawa
   `legacy_id`.
 
-### `legacy:emails` — satu-satunya pintu kepada penggunaan sebenar
-
-Dump **tiada lajur email dan tiada lajur telefon** — bukan kosong, tetapi tiada.
-Pesertanya tidak pernah log masuk; hanya pegawai, dengan `loginname`. Jadi
-175 peserta import terkunci sepenuhnya, dengan sengaja: kata laluan rawak dan
-alamat pada `legacy.test` yang tidak boleh terima mel.
-
-`legacy:emails <fail.csv>` memberi mereka alamat sebenar, dan **sebaik alamat
-itu benar, aliran Lupa Kata Laluan biasa mula berfungsi**. Arahan ini **tidak
-menetapkan dan tidak menghantar kata laluan** — peserta membuktikan alamat itu
-miliknya dengan menggunakannya.
-
-**Dipadan pada IC**, diukur: merentas 175 peserta, IC unik 175 cara, tidak
-pernah kosong, dan **kekal unik selepas dinormalkan kepada digit** — yang wajib,
-kerana dump menulis kedua-dua `890508-12-0000` dan `800601100000`.
-`community_id` **tidak boleh** jadi kunci sendiri: ia unik 173 cara sahaja dan
-satu baris tiada.
-
-**Selamat di pelayan**, tidak seperti `legacy:accounts`: ia tidak menanam akaun
-dan tidak tahu sebarang kata laluan; ia memindahkan alamat ke baris yang sudah
-ada. Ia enggan menyentuh peserta yang sudah ada alamat sebenar melainkan
-`--replace`.
-
-Dua perkara yang dikunci ujian:
-
-- **Seluruh fail dirancang sebelum satu baris ditulis.** Fail yang memberi satu
-  alamat kepada dua orang menggugurkan **kedua-dua** baris, bukan menerima yang
-  pertama — tiada apa dalam fail itu menyatakan yang mana pejabat maksudkan,
-  jadi menerima yang pertama bermakna menulis lambungan syiling ke dalam
-  identiti seseorang.
-- **Disimpan melalui model, bukan query builder**, supaya `Auditable` merekod
-  siapa menukar alamat siapa dan dari apa. Kata laluan dikecualikan daripada
-  jejak itu dan mesti kekal dikecualikan.
 
 ### Zon lama **mesti** diterjemah, tidak boleh disimpan mentah
 

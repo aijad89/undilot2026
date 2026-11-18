@@ -23,15 +23,16 @@ yang belum siap, dan 5 pepijat sederhana yang masih terbuka.
 
 ### B1. Data peserta sebenar belum dimuat
 - [ ] Dapatkan CSV senarai peserta daripada pejabat
-- [ ] Pastikan setiap baris ada **emel sebenar** (lihat B2)
+- [ ] Pastikan setiap baris ada `no_komuniti` **dan** `ic` (lihat B2) — tiada
+      emel dalam projek ini
 - [ ] `php artisan import:participants <fail.csv>` — semak laporan, tiada baris gagal
 
-Lajur CSV: wajib `nama`, `ic`; pilihan `telefon`, `emel`, `syarikat`, `zon`,
+Lajur CSV: wajib `nama`, `ic`; pilihan `telefon`, `syarikat`, `zon`,
 `kod_kraf`, `saiz_gerai`, `kategori_usahawan` (`Pengeluar atau Pedagang` / `Pemborong`),
 `no_komuniti`, `alamat`. Seluruh fail
 disemak dahulu — jika satu baris salah, tiada apa disimpan.
 
-### B2. Peserta perlukan ID Komuniti + IC; pelayan mel untuk notifikasi sahaja
+### B2. Peserta perlukan ID Komuniti + IC; tiada emel
 **Dikemas kini 2026-11-17:** peserta kini log masuk dengan **ID Komuniti + IC**,
 tanpa kata laluan dan tanpa emel (keputusan pemilik). Emel tidak lagi
 diperlukan untuk log masuk.
@@ -41,14 +42,22 @@ diperlukan untuk log masuk.
 - [ ] Pasukan menyemak semula keselamatan log masuk ID + IC (IC dicetak pada
       slip, bukan rahsia) — ditangguhkan atas arahan pemilik.
 
-Baki di bawah hanya untuk notifikasi emel (dan admin), bukan log masuk peserta:
-- [ ] `MAIL_*` dalam `.env` pelayan dihalakan ke pelayan mel sebenar
-      (sekarang `MAIL_MAILER=log`)
-- [ ] Uji hantar emel reset kata laluan dari pelayan produksi ke alamat luar
-- [ ] Semak rekod PTR (reverse DNS) IP pelayan — pengajaran aduan-app: pelayan mel
-      menolak sambungan daripada IP tanpa PTR
-- [ ] Putuskan: bagaimana peserta tahu akaun mereka sudah wujud? (emel
-      pengumuman / SMS / taklimat — sistem tidak menghantar apa-apa sendiri)
+**Aplikasi tidak menghantar emel langsung** (keputusan pemilik 2026-11-17):
+notifikasi dalam aplikasi sahaja, aliran lupa/reset kata laluan dibuang. Tiada
+pelayan mel, ujian hantar atau rekod PTR diperlukan; biarkan `MAIL_MAILER=log`.
+
+- [ ] Putuskan: bagaimana peserta tahu akaun mereka sudah wujud dan bila perlu
+      log masuk? (SMS / taklimat / pengumuman pejabat — sistem tidak
+      menghantar apa-apa sendiri; notifikasi hanya kelihatan selepas log masuk)
+
+**Pegawai (admin) log masuk dengan nama pengguna + kata laluan; tiada emel
+langsung dalam projek** (keputusan pemilik 2026-11-17, **sudah dibina**).
+Akaun pegawai dicipta **baharu** dalam aplikasi (HQ Admins / State Admins) —
+kata laluan aplikasi web lama tidak dibawa.
+
+- [ ] Cipta akaun setiap pegawai negeri dan HQ di pelayan, serahkan nama
+      pengguna + kata laluan kepada mereka sendiri
+- [ ] `.env` pelayan: `ADMIN_SEED_USERNAME` (bukan lagi `ADMIN_SEED_EMAIL`)
 
 ### B3. Persediaan pelayan dan deploy
 Senarai semak penuh: [`serahan-pembangun.md` seksyen 13](serahan-pembangun.md#13-deploy-ke-produksi).
@@ -251,3 +260,5 @@ yang sudah dibuang (laporan, pengumuman, permohonan sertai) — sahkan dan tutup
 | 2026-11-17 | Medan data pejabat: `alamat` dalam import CSV; kategori usahawan = Pengeluar atau Pedagang / Pemborong; status bayaran (Paid / Not paid) di senarai cabutan; nombor lot `TBPS02`. Suite: 504 lulus, 21 gagal (fixture lama sahaja) | belum push | — |
 | 2026-11-17 | Log masuk peserta ditukar ke ID Komuniti + IC (tanpa kata laluan/emel); borang syarikat mewajibkan ID + IC, emel pilihan. Suite: 516 lulus, 21 gagal (fixture lama sahaja) | belum push | — |
 | 2026-11-17 | Borang pelan lot: bahagian "Booth sizes here" dibuang; jumlah lokasi dikira daripada peruntukan kod + baris plot simpanan pilihan. Suite: 516 lulus, 21 gagal (fixture lama sahaja) | belum push | — |
+| 2026-11-17 | Aplikasi tidak menghantar emel langsung: notifikasi dalam aplikasi sahaja, aliran lupa/reset kata laluan dibuang; kad dan route tukar kata laluan dibuang dari profil, profil memaparkan ID Komuniti; B1 dibetulkan (emel tidak wajib) | belum push | — |
+| 2026-11-17 | Tiada emel langsung: lajur `email` dibuang daripada `users` dan `admins` (dan `password_reset_tokens`); pegawai log masuk dengan nama pengguna + kata laluan baharu; import CSV tidak membaca `emel`; `legacy:emails` dibuang; legacy/demo dikenal pasti dengan `legacy_id` / ID Komuniti. Suite: 503 lulus, 22 gagal (fixture lama sahaja) | belum push | — |

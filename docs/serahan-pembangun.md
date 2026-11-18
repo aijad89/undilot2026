@@ -157,7 +157,7 @@ DB_CONNECTION=sqlite
 # DB_PASSWORD=...
 
 # Wajib — seeder enggan berjalan tanpanya (tiada kata laluan lalai, dengan sengaja)
-ADMIN_SEED_EMAIL=admin@undilot.test
+ADMIN_SEED_USERNAME=admin
 ADMIN_SEED_PASSWORD=<kata laluan kuat>
 ```
 
@@ -179,8 +179,8 @@ Ia mengambil kira-kira satu minit.
   jalankan `php artisan queue:work`, atau tekan **Work the queue** di `/auto`.
 - Untuk menguji buka/tutup automatik: `php artisan schedule:work`, atau jalankan
   `php artisan events:update-statuses` dengan tangan.
-- `MAIL_MAILER=log` — emel (cth. reset kata laluan) ditulis ke
-  `storage/logs/laravel.log`.
+- `MAIL_MAILER=log` — aplikasi tidak menghantar emel langsung (notifikasi
+  dalam aplikasi sahaja, keputusan pemilik 2026-11-17).
 
 ---
 
@@ -191,10 +191,10 @@ Sistem ada **dua guard berasingan** — admin dan peserta tidak berkongsi sesi.
 | Siapa | URL | Model / guard |
 |---|---|---|
 | Admin (super, hq, negeri) | `/admin/login` | `App\Models\Admin`, guard `admin` |
-| Peserta | `/login`, `/forgot-password` | `App\Models\User`, guard `web` |
+| Peserta | `/login` (ID Komuniti + IC) | `App\Models\User`, guard `web` |
 | Log masuk pantas (dev sahaja) | `/auto` | Klik mana-mana akaun, tanpa kata laluan |
 
-- Admin pertama dicipta oleh `AdminSeeder` daripada `ADMIN_SEED_EMAIL` /
+- Admin pertama dicipta oleh `AdminSeeder` daripada `ADMIN_SEED_USERNAME` /
   `ADMIN_SEED_PASSWORD`. Ia peranan `super`.
 - `/auto` hanya didaftar bila `APP_ENV` ialah `local`, `testing` atau `e2e`
   (`routes/web.php`). **Ia tidak pernah wujud di pelayan.** Pastikan
@@ -222,7 +222,7 @@ app/
 ├── Http/
 │   ├── Controllers/
 │   │   ├── Admin/         Semua skrin admin (acara, senarai cabutan, cabutan, tetapan…)
-│   │   ├── Auth/          Log masuk peserta (ID Komuniti + IC), admin (emel + kata laluan)
+│   │   ├── Auth/          Log masuk peserta (ID Komuniti + IC), admin (nama pengguna + kata laluan)
 │   │   ├── HomeController         Laman awam + papan pemuka peserta
 │   │   ├── LotDrawController      Halaman lot peserta, Confirm, slip PDF
 │   │   ├── NotificationController Peti notifikasi peserta
@@ -419,7 +419,7 @@ baharu ditambah pada `REFERENCE_SEEDERS` dalam
 php artisan import:participants path/to/peserta.csv
 ```
 
-- Lajur wajib: `nama`, `ic`. **`no_komuniti` diperlukan untuk log masuk.** Pilihan: `telefon`, `emel`, `syarikat`, `zon`,
+- Lajur wajib: `nama`, `ic`. **`no_komuniti` diperlukan untuk log masuk.** Pilihan: `telefon`, `syarikat`, `zon`,
   `kod_kraf`, `saiz_gerai`, `kategori_usahawan` (`Pengeluar atau Pedagang` / `Pemborong`), `no_komuniti`, `alamat`.
 - Satu baris = satu orang dan syarikatnya. Dipadan pada IC (dinormalkan kepada
   digit).
@@ -489,8 +489,8 @@ Repo tidak mengandungi skrip atau dokumen deploy. Maklumat pelayan
    - `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=<URL penuh, termasuk subpath>`
    - `DB_*` MySQL
    - `SESSION_DRIVER=database`, `QUEUE_CONNECTION=database`
-   - `MAIL_*` pelayan mel sebenar (notifikasi; peserta log masuk dengan ID Komuniti + IC, bukan emel)
-   - `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` untuk super admin pertama
+   - `MAIL_MAILER=log` — tiada pelayan mel diperlukan; aplikasi tidak menghantar emel
+   - `ADMIN_SEED_USERNAME` / `ADMIN_SEED_PASSWORD` untuk super admin pertama
 4. `php artisan key:generate`
 5. `php artisan migrate --force` kemudian `php artisan db:seed --force` —
    di produksi hanya data rujukan (admin + kod kraf) ditanam, tiada data demo.
@@ -540,7 +540,6 @@ dan repo ini awam (`.gitignore` mengabaikan semua `*.sql`).
 | `import:legacy <fail.sql>` | Salin dump ke jadual `legacy_*` tanpa membuat keputusan | Ya |
 | `legacy:accounts` | Bina akaun admin + peserta daripada staging | **Tidak** — local/testing/e2e sahaja |
 | `legacy:transform-aacb` | Bina semula acara AACB (175 plot, 174 pendaftaran) | Lihat `CLAUDE.md` |
-| `legacy:emails <fail.csv>` | Beri alamat emel sebenar kepada peserta import, dipadan pada IC | Ya |
 | `import:participants <fail.csv>` | Import senarai peserta pejabat (jalan biasa untuk data baharu) | Ya |
 
 Fakta penting: sistem lama tiada peranan, tiada jadual acara, tiada emel

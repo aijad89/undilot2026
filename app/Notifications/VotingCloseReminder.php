@@ -5,7 +5,6 @@ namespace App\Notifications;
 use App\Models\Event;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
@@ -18,19 +17,14 @@ class VotingCloseReminder extends Notification implements ShouldQueue
 
     public function __construct(public Event $event) {}
 
+    /**
+     * In-app only. The app sends no email at all (owner's decision,
+     * 2026-11-17): participants sign in with community ID + IC and most
+     * give no address. Do not add 'mail' back without that decision.
+     */
     public function via($notifiable): array
     {
-        return ['mail', 'database'];
-    }
-
-    public function toMail($notifiable): MailMessage
-    {
-        return (new MailMessage)
-            ->subject('Reminder: the lot draw closes in 30 minutes')
-            ->greeting('Hi '.$notifiable->name.',')
-            ->line('The lot draw for '.$this->event->title.' closes in 30 minutes, and you have not confirmed your lot yet.')
-            ->action('Confirm Lot', route('zvote.index', $this->event))
-            ->line('Anyone who has not confirmed by the deadline is assigned a lot by the office.');
+        return ['database'];
     }
 
     public function toArray($notifiable): array

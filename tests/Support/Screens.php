@@ -95,9 +95,6 @@ final class Screens
     public static function urls(array $world, bool $absolute = true): array
     {
         $skip = [
-            // A signed reset token, which only a password-reset mail carries.
-            // tests/Feature covers the reset flow itself.
-            'password.reset',
             // Registers in local/testing only and signs a user in as a side effect,
             // which would change who the rest of this sweep is acting as.
             'dev.auto',

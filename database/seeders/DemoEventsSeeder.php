@@ -47,7 +47,7 @@ class DemoEventsSeeder extends LocalOnlySeeder
     public function run(): void
     {
         $faker = fake('ms_MY');
-        $companies = Company::whereHas('user', fn ($q) => $q->where('email', 'like', '%@demo.test'))
+        $companies = Company::whereHas('user', fn ($q) => $q->where('community_id', 'like', 'KOM-%'))
             ->whereNotNull('kraf_code')
             ->with('user')
             ->get();

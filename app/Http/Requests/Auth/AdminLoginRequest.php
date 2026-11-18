@@ -27,7 +27,7 @@ class AdminLoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            'username' => ['required', 'string', 'max:50'],
             'password' => ['required', 'string'],
         ];
     }
@@ -41,22 +41,22 @@ class AdminLoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::guard('admin')->attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        if (! Auth::guard('admin')->attempt(['username' => $this->username(), 'password' => (string) $this->input('password')], $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
+                'username' => trans('auth.failed'),
             ]);
         }
 
         // Checked AFTER the password, as on the participant login: the right
         // password is what earns the true reason. Before it, "switched off"
-        // would tell a stranger which emails are admin accounts.
+        // would tell a stranger which usernames are admin accounts.
         if (! Auth::guard('admin')->user()->is_active) {
             Auth::guard('admin')->logout();
 
             throw ValidationException::withMessages([
-                'email' => 'This admin account has been switched off. Contact HQ to have it switched back on.',
+                'username' => 'This admin account has been switched off. Contact HQ to have it switched back on.',
             ]);
         }
 
@@ -79,7 +79,7 @@ class AdminLoginRequest extends FormRequest
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
+            'username' => trans('auth.throttle', [
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),
@@ -87,10 +87,20 @@ class AdminLoginRequest extends FormRequest
     }
 
     /**
+     * The username as stored: trimmed and lower-cased. AdminController saves it
+     * the same way, so `Hafiz` and ` hafiz ` are the same officer on every
+     * driver (SQLite compares strings case-sensitively, MySQL does not).
+     */
+    public function username(): string
+    {
+        return Str::lower(trim((string) $this->input('username')));
+    }
+
+    /**
      * Get the rate limiting throttle key for the request.
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        return Str::transliterate($this->username().'|'.$this->ip());
     }
 }

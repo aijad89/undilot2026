@@ -181,23 +181,6 @@ class AppServiceProvider extends ServiceProvider
         Password::defaults(fn () => Password::min(8)->letters()->numbers());
 
         /*
-         * NO ResetPassword::createUrlUsing() HERE, AND THAT IS DELIBERATE.
-         *
-         * The Sanctum SPA scaffolding ships one, and it builds
-         * `config('app.frontend_url')."/password-reset/$token"`. For a Blade
-         * monolith both halves are wrong: there is no `/password-reset/{token}`
-         * route — the real one is `/reset-password/{token}` — and
-         * `app.frontend_url` is not defined in this application's config, so it
-         * resolves to the FRAMEWORK default of `http://localhost:3000` and never
-         * reaches APP_URL. The emailed link is then unreachable twice over.
-         *
-         * Laravel's default builds `route('password.reset', [token, email])`,
-         * which is the route that exists and honours APP_URL. If one is ever added
-         * here it has to be kept in step with routes/auth.php by hand, which is
-         * the part that drifts.
-         */
-
-        /*
          * Who may create, edit and delete events — and with them the draw that
          * lives inside each one.
          *

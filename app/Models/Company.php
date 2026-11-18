@@ -54,7 +54,6 @@ class Company extends Model
             ->when($request->input('search'), fn ($q, $search) => $q->where(
                 fn ($w) => $w->where('name', 'like', "%{$search}%")
                     ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
                         ->orWhere('ic_number', 'like', "%{$search}%")
                         ->orWhere('community_id', 'like', "%{$search}%"))
             ))

@@ -15,14 +15,14 @@ test.afterEach(async ({ page }) => {
     expect(strayAlerts(page), 'an alert was accepted where a confirm was expected').toEqual([]);
 });
 
-let eventId, title, company, email;
+let eventId, title, company, communityId;
 
 test.beforeAll(() => {
-    [eventId, title, company, email] = seed('two-step-setup.php').trim().split('\n').slice(-4).map((s) => s.trim());
+    [eventId, title, company, communityId] = seed('two-step-setup.php').trim().split('\n').slice(-4).map((s) => s.trim());
 });
 
-const ZONE = 'e2e-admin@e2e.test';
-const HQ = 'e2e-hq@e2e.test';
+const ZONE = 'e2e-admin';
+const HQ = 'e2e-hq';
 const drawList = () => `/admin/events/${eventId}/registrations`;
 const row = (page) => page.locator('table:has(th:text-is("HQ check")) tbody tr', { hasText: company });
 const submitting = (page, action) => Promise.all([page.waitForNavigation(), action]);
@@ -88,7 +88,7 @@ test('the zone sees it returned, fixes the booth, and it waits for HQ again', as
 });
 
 test('the participant is told only that the office is adding it', async ({ page }) => {
-    await signInAs(page, email);
+    await signInAs(page, communityId);
     await page.goto(`/events/${eventId}`);
 
     await expect(page.getByText('The office is adding your company to this draw.')).toBeVisible();
@@ -175,7 +175,7 @@ test('the zone can no longer take it off the list, and the participant sees the 
     await expect(page.getByText('1 kept: only HQ can remove them now.')).toBeVisible();
     await expect(row(page)).toHaveCount(1);
 
-    await signInAs(page, email);
+    await signInAs(page, communityId);
     await page.goto('/dashboard');
     await expect(page.getByText(title)).toBeVisible();
 });

@@ -10,7 +10,7 @@ it('signs in as an admin or a participant with one click, dropping the other gua
     $admin = superAdmin();
     $user = Company::factory()->create()->user;
 
-    $this->get(route('dev.auto'))->assertOk()->assertSee($admin->email)->assertSee($user->email);
+    $this->get(route('dev.auto'))->assertOk()->assertSee($admin->username)->assertSee($user->community_id);
 
     $this->post(route('dev.auto.admin', $admin))->assertRedirect(route('admin.dashboard'));
     $this->assertAuthenticatedAs($admin, 'admin');
