@@ -151,7 +151,7 @@ class CompanyController extends Controller
             'company' => $company,
             'zones' => $this->zonesFor($request->user('admin')),
             'picker' => KrafPicker::data($company),
-            'codes' => KrafPicker::codes(),
+            'codes' => KrafPicker::codesFor($company),
             'plotSizes' => PlotSizes::all(),
         ]);
     }
@@ -353,7 +353,7 @@ class CompanyController extends Controller
     {
         $this->authorizeScope($request, $company);
 
-        $allowed = KrafPicker::codes()->pluck('code')->push($company->kraf_code)->filter()->all();
+        $allowed = KrafPicker::codesFor($company)->pluck('code')->push($company->kraf_code)->filter()->all();
         $sizes = array_filter([...PlotSizes::all(), $company->plot_size]);
 
         $data = $request->validate([

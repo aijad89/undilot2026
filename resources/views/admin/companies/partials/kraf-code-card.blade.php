@@ -6,7 +6,8 @@
 
     Expects:
       $company   — the company being edited
-      $codes     — App\Support\KrafPicker::codes()
+      $codes     — App\Support\KrafPicker::codesFor($company): only the codes of
+                   the company's picked categories (all, if none picked)
       $plotSizes — App\Support\PlotSizes::all()
 --}}
 <div class="mac-card mac-card-padded mb-3" id="craft-code" style="scroll-margin-top: 80px">
