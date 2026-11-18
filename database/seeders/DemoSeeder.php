@@ -5,16 +5,14 @@ namespace Database\Seeders;
 use App\Models\Company;
 use App\Models\Event;
 use App\Models\EventRegistration;
-use App\Models\KrafBidang;
-use App\Models\KrafProduk;
-use App\Models\KrafSubBidang;
+use Illuminate\Support\Facades\Artisan;
 
 /**
  * DEMO DATA — never on the live server (it extends LocalOnlySeeder, which
  * refuses every APP_ENV but local, testing and e2e). Plant it on purpose with
  * `db:seed --class=DemoSeeder`.
  *
- * Plants, in order: a sample craft hierarchy, 14 state admins + 1 HQ, 14
+ * Plants, in order: the craft hierarchy (database/data), 14 state admins + 1 HQ, 14
  * participants with a company each, and two events — one with its draw list
  * filled from those companies; then DemoEventsSeeder's open, coming and past
  * events; then DemoScenarioSeeder's "Uji: …" events, one per state the manual
@@ -22,28 +20,6 @@ use App\Models\KrafSubBidang;
  */
 class DemoSeeder extends LocalOnlySeeder
 {
-    /** category => [sub-category => [[classifications], [products]]] */
-    private const HIERARCHY = [
-        'TEKSTIL' => [
-            'Batik' => [['Batik Canting', 'Batik Blok', 'Batik Skrin'], ['Kain Pasang', 'Baju Kurung', 'Selendang']],
-            'Tenun' => [['Tenun Pahang', 'Pua Kumbu'], ['Kain Sampin', 'Alas Meja']],
-            'Songket' => [['Songket Tradisional'], ['Kain Songket', 'Tengkolok']],
-        ],
-        'HASIL RIMBA' => [
-            'Ukiran Kayu' => [['Ukiran Timbul', 'Ukiran Tebuk'], ['Panel Dinding', 'Perabot']],
-            'Anyaman' => [['Mengkuang', 'Rotan', 'Buluh'], ['Tikar', 'Bakul', 'Tudung Saji']],
-        ],
-        'HASIL TANAH' => [
-            'Seramik' => [['Labu Sayong', 'Tembikar'], ['Pasu', 'Labu Air']],
-        ],
-        'HASIL LOGAM' => [
-            'Tembaga & Perak' => [['Ketukan', 'Larikan'], ['Dulang', 'Kerongsang']],
-        ],
-        'ANEKA KRAF' => [
-            'Manik' => [['Manik Kaca', 'Manik Mutiara'], ['Rantai', 'Gelang']],
-        ],
-    ];
-
     public function run(): void
     {
         $this->hierarchy();
@@ -53,28 +29,14 @@ class DemoSeeder extends LocalOnlySeeder
         $this->call(DemoScenarioSeeder::class);
     }
 
+    /**
+     * The real craft hierarchy, not a sample: DemoUserSeeder hands each demo
+     * company one of its sub-categories. Adds only; DatabaseSeeder has usually
+     * loaded it already.
+     */
     private function hierarchy(): void
     {
-        foreach (self::HIERARCHY as $categoryName => $subs) {
-            $category = KrafBidang::categories()->where('name', $categoryName)->first();
-            if (! $category) {
-                continue; // KrafCodeSeeder plants the five categories
-            }
-
-            foreach ($subs as $subName => [$classifications, $products]) {
-                $sub = KrafSubBidang::firstOrCreate(['bidang_id' => $category->id, 'name' => $subName]);
-
-                foreach ($classifications as $name) {
-                    $sub->pengelasan()->firstOrCreate(['name' => $name]);
-                }
-                foreach ($products as $name) {
-                    KrafProduk::firstOrCreate(
-                        ['sub_bidang_id' => $sub->id, 'name' => $name],
-                        ['bidang_id' => $category->id],
-                    );
-                }
-            }
-        }
+        Artisan::call('kraf:import-hierarchy', ['file' => database_path('data/hierarki-kraf.csv')]);
     }
 
     private function events(): void

@@ -66,6 +66,13 @@ Senarai semak penuh: [`serahan-pembangun.md` seksyen 13](serahan-pembangun.md#13
 - [ ] HTTPS
 - [ ] `.env`: `APP_ENV=production`, `APP_DEBUG=false`, `SESSION_DRIVER=database`,
       `QUEUE_CONNECTION=database`, `APP_URL` penuh termasuk subpath
+- [ ] `php artisan migrate --force` kemudian `php artisan db:seed --force` —
+      super admin pertama, helaian kod kraf, lima kategori, **dan hierarki kraf
+      penuh** dari `database/data/hierarki-kraf.csv` (35 sub-kategori, 76
+      klasifikasi, 138 produk, disemak ikut buku 2026-11-18). Tiada data demo
+      di pelayan. Boleh dijalankan semula: tambah sahaja, tiada yang dipadam.
+      Kemas kini hierarki kemudian: sunting fail itu, deploy, jalankan
+      `php artisan kraf:import-hierarchy database/data/hierarki-kraf.csv`
 - [ ] `php artisan storage:link` (tanpanya sepanduk acara hilang tanpa ralat)
 - [ ] Penjadual dari `/etc/cron.d/undilot` (bukan crontab `www-data`)
 - [ ] Pekerja baris gilir (systemd `queue:work database`) — tanpanya **tiada

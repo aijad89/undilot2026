@@ -403,6 +403,7 @@ sebabnya di sana sebelum mengubah.
 |---|---|---|
 | `AdminSeeder` | `DatabaseSeeder` | Super admin pertama dari `.env` (rujukan, berjalan di mana-mana) |
 | `KrafCodeSeeder` | `DatabaseSeeder` | Helaian kod kraf HKK 2025 + 5 kategori (rujukan) |
+| `kraf:import-hierarchy` (arahan, bukan seeder) | `DatabaseSeeder` | Hierarki kraf dari `database/data/hierarki-kraf.csv` — sub-kategori, klasifikasi, produk (rujukan, tambah sahaja) |
 | `DemoSeeder` → `DemoAdminSeeder`, `DemoUserSeeder`, `DemoEventsSeeder`, `DemoScenarioSeeder` | `DatabaseSeeder` (dev sahaja) | Admin, peserta, syarikat dan acara demo |
 | `BatikDrawSeeder` | tangan: `db:seed --class=BatikDrawSeeder` | 200 syarikat batik + satu cabutan saiz penuh, sedia dibuka |
 | `DemoThreeEventsSeeder` | tangan: `db:seed --class=DemoThreeEventsSeeder` | **Memadam semua acara**, kemudian tiga cabutan terbuka. Perlukan `DemoSeeder` dahulu |
@@ -493,7 +494,8 @@ Repo tidak mengandungi skrip atau dokumen deploy. Maklumat pelayan
    - `ADMIN_SEED_USERNAME` / `ADMIN_SEED_PASSWORD` untuk super admin pertama
 4. `php artisan key:generate`
 5. `php artisan migrate --force` kemudian `php artisan db:seed --force` —
-   di produksi hanya data rujukan (admin + kod kraf) ditanam, tiada data demo.
+   di produksi hanya data rujukan (admin + kod kraf + hierarki kraf) ditanam,
+   tiada data demo.
 6. **`php artisan storage:link`** — jika terlupa, sepanduk hilang di pelayan
    tanpa ralat.
 7. `php artisan config:cache route:cache view:cache`
